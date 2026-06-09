@@ -97,6 +97,7 @@ func _ready():
 		farm.append(row)
 	_load_land_textures()
 	_load_game()
+	_apply_tool_cursor()
 
 func _load_land_textures():
 	land_textures.clear()
@@ -191,6 +192,24 @@ func _process(delta: float):
 func _notification(what: int):
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		_save_game(false)
+
+func _exit_tree():
+	Input.set_custom_mouse_cursor(null)
+
+func _set_tool_mode(mode: int):
+	tool_mode = clampi(mode, 0, TOOL_ICON_TEXTURES.size() - 1)
+	_apply_tool_cursor()
+
+func _apply_tool_cursor():
+	if tool_mode < 0 or tool_mode >= TOOL_ICON_TEXTURES.size():
+		Input.set_custom_mouse_cursor(null)
+		return
+	var texture := TOOL_ICON_TEXTURES[tool_mode]
+	if texture == null:
+		Input.set_custom_mouse_cursor(null)
+		return
+	var hotspot := Vector2(8, 8) if tool_mode == 0 else Vector2(18, 18)
+	Input.set_custom_mouse_cursor(texture, Input.CURSOR_ARROW, hotspot)
 
 func _unhandled_input(event: InputEvent):
 	if event is InputEventKey and event.pressed:
@@ -322,7 +341,7 @@ func _unhandled_input(event: InputEvent):
 			for ti in range(5):
 				var bx2: float = tb_sx + ti * 82.0
 				if mx >= bx2 and mx <= bx2 + 70:
-					tool_mode = ti
+					_set_tool_mode(ti)
 					var mode_names2 := ["普通", "浇水", "施肥", "收获", "铲除"]
 					toast_text = "切换到: " + mode_names2[ti] + "模式"
 					toast_timer = 1.0
@@ -603,7 +622,7 @@ func _load_game():
 	exp_val = int(data.get("exp_val", exp_val))
 	exp_to_level = int(data.get("exp_to_level", exp_to_level))
 	selected_seed = int(data.get("selected_seed", selected_seed))
-	tool_mode = int(data.get("tool_mode", tool_mode))
+	_set_tool_mode(int(data.get("tool_mode", tool_mode)))
 	if data.has("inventory") and (data["inventory"] is Dictionary):
 		inventory = data["inventory"]
 		_normalize_inventory_keys()
