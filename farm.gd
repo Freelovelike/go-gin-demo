@@ -1084,15 +1084,19 @@ func _draw():
 				var col = item_count % 5
 				var row = item_count / 5
 				var slot_x = 200 + col * 150
-				var slot_y = 120 + row * 180
+				var slot_y = 120 + row * 190
 				
 				# Slot background
-				draw_rect(Rect2(slot_x, slot_y, 140, 160), Color(0.85, 0.8, 0.9))
-				draw_rect(Rect2(slot_x, slot_y, 140, 160), Color(0.5, 0.3, 0.55), false, 2)
+				draw_rect(Rect2(slot_x, slot_y, 140, 172), Color(0.85, 0.8, 0.9))
+				draw_rect(Rect2(slot_x, slot_y, 140, 172), Color(0.5, 0.3, 0.55), false, 2)
 				
 				# Crop icon
-				draw_circle(Vector2(slot_x + 70, slot_y + 40), 20, CROP_COLORS[cid][1])
-				draw_circle(Vector2(slot_x + 63, slot_y + 35), 6, Color(1,1,1,0.3))
+				var mature_texture := _get_crop_mature_texture(int(cid))
+				if mature_texture != null:
+					_draw_inventory_crop_icon(Rect2(slot_x + 30, slot_y + 10, 80, 62), mature_texture)
+				else:
+					draw_circle(Vector2(slot_x + 70, slot_y + 40), 20, CROP_COLORS[cid][1])
+					draw_circle(Vector2(slot_x + 63, slot_y + 35), 6, Color(1,1,1,0.3))
 				
 				# Name and amount
 				var name_w = ThemeDB.fallback_font.get_string_size(CROPS[cid][0], HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
@@ -1102,11 +1106,13 @@ func _draw():
 				_draw_text(slot_x + 70 - amt_w * 0.5, slot_y + 95, amt_txt, 14, Color(0.3, 0.2, 0.4))
 				
 				# Sell button
-				draw_rect(Rect2(slot_x + 35, slot_y + 120, 70, 25), Color(0.8, 0.6, 0.1))
-				_draw_text(slot_x + 48, slot_y + 124, "卖出", 14, Color(1,1,1))
+				draw_rect(Rect2(slot_x + 18, slot_y + 123, 49, 25), Color(0.8, 0.6, 0.1))
+				_draw_text(slot_x + 26, slot_y + 127, "卖出", 13, Color(1,1,1))
+				draw_rect(Rect2(slot_x + 73, slot_y + 123, 49, 25), Color(0.65, 0.28, 0.18))
+				_draw_text(slot_x + 81, slot_y + 127, "全卖", 13, Color(1,1,1))
 				var price_txt = "(+" + str(int(CROPS[cid][2])) + ")"
 				var price_w = ThemeDB.fallback_font.get_string_size(price_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
-				_draw_text(slot_x + 70 - price_w * 0.5, slot_y + 148, price_txt, 10, Color(0.5, 0.4, 0.1))
+				_draw_text(slot_x + 70 - price_w * 0.5, slot_y + 152, price_txt, 10, Color(0.5, 0.4, 0.1))
 				
 				item_count += 1
 				
@@ -1445,6 +1451,17 @@ func _draw_ui_seed_thumbnail(rect: Rect2, texture: Texture2D):
 	var scale_factor := minf(rect.size.x / size.x, rect.size.y / size.y)
 	var draw_size := size * scale_factor
 	var draw_pos := rect.position + (rect.size - draw_size) * 0.5
+	draw_texture_rect(texture, Rect2(draw_pos, draw_size), false)
+
+func _draw_inventory_crop_icon(rect: Rect2, texture: Texture2D):
+	if texture == null:
+		return
+	var size := texture.get_size()
+	if size.x <= 0.0 or size.y <= 0.0:
+		return
+	var scale_factor := minf(rect.size.x / size.x, rect.size.y / size.y)
+	var draw_size := size * scale_factor
+	var draw_pos := rect.position + Vector2((rect.size.x - draw_size.x) * 0.5, rect.size.y - draw_size.y)
 	draw_texture_rect(texture, Rect2(draw_pos, draw_size), false)
 
 func _draw_seed_preview_texture(cx: float, cy: float, texture: Texture2D):
