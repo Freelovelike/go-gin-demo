@@ -1,0 +1,6 @@
+sandbox_mode = "workspace-write"
+[mcp_servers.godot-mcp]
+url = "http://localhost:19080/mcp"
+
+[sandbox_workspace_write]
+network_access = true

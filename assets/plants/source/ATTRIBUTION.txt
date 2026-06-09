@@ -1,0 +1,16 @@
+OpenGameArt sources downloaded on 2026-06-08.
+
+1. Simple Farm Tiles
+Source: https://opengameart.org/content/simple-farm-tiles
+License: CC0
+File: farm_tiles.png
+
+2. Farm sprites
+Source: https://opengameart.org/content/farm-sprites
+License: CC0
+Files: FarmLand_2.png, Seeds_0.png, Seeds2_0.png
+
+3. 32 pixels tomato plants
+Source: https://opengameart.org/content/32-pixels-tomato-plants
+License: CC0
+Files: tomato32_0.png, tomato32ripe_0.png
