@@ -11,18 +11,19 @@ config_version=5
 [application]
 
 config/name="新建游戏项目"
-run/main_scene="res://Farm.tscn"
+run/main_scene="res://Login.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
-[autoload]
-
-MCPRuntimeProbe="*res://addons/godot_mcp/runtime/mcp_runtime_probe.gd"
-
 [display]
 
-window/size/viewport_width=1448
-window/size/viewport_height=1086
+window/size/viewport_width=1000
+window/size/viewport_height=800
+window/size/window_width_override=1448
+window/size/window_height_override=1086
+window/stretch/mode="canvas_items"
+window/size/min_window_width=960
+window/size/min_window_height=720
 
 [editor_plugins]
 

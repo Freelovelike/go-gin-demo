@@ -5,12 +5,18 @@
 [ext_resource type="Script" uid="uid://cvqrvr61gl6bb" path="res://scripts/plot_anchor_tile.gd" id="2_xqpul"]
 [ext_resource type="Texture2D" uid="uid://c757hbirnn8dc" path="res://assets/land/land_yellow_dry.png" id="3_x7wqs"]
 [ext_resource type="Script" uid="uid://b1g2altukveho" path="res://scripts/plot_anchor_preview.gd" id="3_xqpul"]
+[ext_resource type="Script" path="res://scenes/shop_overlay.gd" id="4_shop"]
+[ext_resource type="Script" path="res://scenes/inventory_overlay.gd" id="5_inv"]
+[ext_resource type="Script" path="res://scenes/settings_overlay.gd" id="6_set"]
 
 [node name="Farm" type="Node2D" unique_id=1337986768]
 script = ExtResource("1_farm")
 
 [node name="PlotAnchors" type="Node2D" parent="." unique_id=1933712881]
 position = Vector2(143, 55)
+
+[node name="SandyBase" type="Polygon2D" parent="PlotAnchors" unique_id=733095047]
+z_index = -10
 
 [node name="Plot_0_0" type="Node2D" parent="PlotAnchors" unique_id=156151966]
 z_index = -5
@@ -772,3 +778,33 @@ visible = false
 z_index = 100
 position = Vector2(150, 55)
 script = ExtResource("3_xqpul")
+
+[node name="ShopOverlay" type="Control" parent="."]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("4_shop")
+
+[node name="InventoryOverlay" type="Control" parent="."]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("5_inv")
+
+[node name="SettingsOverlay" type="Control" parent="."]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("6_set")

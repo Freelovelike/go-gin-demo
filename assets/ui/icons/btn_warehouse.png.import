@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbh5tg2hyx6ha"
-path="res://.godot/imported/tool_icons_sheet_source.png-4f1fda11bb4880362a03882ee00c27b1.ctex"
+uid="uid://dlimbeg0mj3xk"
+path="res://.godot/imported/btn_warehouse.png-31a404f9198f9374e72bba7d02b2b24a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/icons/tool_icons_sheet_source.png"
-dest_files=["res://.godot/imported/tool_icons_sheet_source.png-4f1fda11bb4880362a03882ee00c27b1.ctex"]
+source_file="res://assets/ui/icons/btn_warehouse.png"
+dest_files=["res://.godot/imported/btn_warehouse.png-31a404f9198f9374e72bba7d02b2b24a.ctex"]
 
 [params]
 
