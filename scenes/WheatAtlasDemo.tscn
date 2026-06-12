@@ -1,6 +1,0 @@
-[gd_scene format=3 uid="uid://cl1phptllehbd"]
-
-[ext_resource type="Script" uid="uid://hqmyn4xw2og6" path="res://scripts/wheat_atlas_demo.gd" id="1_dxijp"]
-
-[node name="WheatAtlasDemo" type="Node2D" unique_id=1151738911]
-script = ExtResource("1_dxijp")
