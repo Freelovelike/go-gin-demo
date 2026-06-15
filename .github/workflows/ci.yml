@@ -47,6 +47,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Clean up large files before upload
+        run: rm -rf .git tmp server # 删掉 .git 历史记录和可能的本地编译包，极大缩减体积
       - name: Copy files to server
         uses: appleboy/scp-action@master
         with:
