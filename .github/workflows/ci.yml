@@ -52,8 +52,8 @@ jobs:
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          # password: ${{ secrets.SERVER_PASSWORD }} # 如果你是用密码登录服务器，请把上一行 key 注释掉，并取消这行注释
+          # key: ${{ secrets.SERVER_SSH_KEY }}
+          password: ${{ secrets.SERVER_PASSWORD }} # 如果你是用密码登录服务器，请把上一行 key 注释掉，并取消这行注释
           source: "."
           target: ${{ secrets.DEPLOY_PATH }}
           rm: false # 设置为 true 会在拷贝前清空目标目录，建议先保持 false 以免误删 .env
@@ -63,8 +63,8 @@ jobs:
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          # password: ${{ secrets.SERVER_PASSWORD }} # 同上
+          # key: ${{ secrets.SERVER_SSH_KEY }}
+          password: ${{ secrets.SERVER_PASSWORD }} # 同上
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
             docker-compose up -d --build
