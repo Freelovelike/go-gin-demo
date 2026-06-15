@@ -32,6 +32,6 @@ RUN apk add --no-cache tzdata && \
 # 从构建阶段复制二进制文件
 COPY --from=builder /build/main .
 
-EXPOSE 8081
+EXPOSE 8082
 
 CMD ["./main"]
