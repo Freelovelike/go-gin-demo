@@ -18,7 +18,7 @@ func Load() *Config {
 	_ = godotenv.Load()
 
 	return &Config{
-		Port:      getEnv("PORT", "8080"),
+		Port:      getEnv("PORT", "8081"),
 		DB_DSN:    getEnv("DB_DSN", "host=localhost user=postgres password=postgres dbname=qqfarm port=5432 sslmode=disable TimeZone=Asia/Shanghai"),
 		RedisAddr: getEnv("REDIS_ADDR", "localhost:6379"),
 		JWTSecret: getEnv("JWT_SECRET", "change-me-in-production"),
