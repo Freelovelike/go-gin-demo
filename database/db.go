@@ -34,6 +34,7 @@ func AutoMigrate() {
 		&models.User{},
 		&models.FarmPlot{},
 		&models.InventoryItem{},
+		&models.FertilizerInventory{},
 		&models.CropDef{},
 	)
 	if err != nil {
@@ -44,7 +45,12 @@ func AutoMigrate() {
 
 func SeedCropDefs() {
 	for _, cs := range models.CROPS {
-		result := DB.Where("key = ?", cs.Key).FirstOrCreate(&models.CropDef{
+		result := DB.Where("key = ?", cs.Key).Assign(models.CropDef{
+			SeedCost:  cs.SeedCost,
+			SellPrice: cs.SellPrice,
+			GrowTime:  cs.GrowTime,
+			ExpReward: cs.ExpReward,
+		}).FirstOrCreate(&models.CropDef{
 			Key:       cs.Key,
 			NameZH:    cs.NameZH,
 			NameEN:    cs.NameEN,

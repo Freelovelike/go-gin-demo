@@ -40,6 +40,10 @@ var CROP_CONFIGS = []CropConfig{
 	{GrowTime: 230, SeedCost: 320, BaseYield: 5, UnitSell: 196, MinYield: 3, MaxYield: 7, DryRate: 0.20, BugRate: 0.12, WeedRate: 0.14, MaxBug: 3, MaxWeed: 3}, // 8 watermelon
 }
 
+// FERTILIZER_COSTS is indexed by fertilizer_id (0-6), must match frontend FERTILIZERS[*][1].
+var FERTILIZER_COSTS = []int{15, 40, 80, 30, 35, 25, 60}
+const FERTILIZER_COUNT = 7
+
 // Stage multipliers for event spawn rates.
 // 0=seed, 1=sprout, 2=growing, 3=mature
 var stageMultDry  = [4]float64{0.5, 1.0, 1.2, 0.0}
@@ -239,6 +243,28 @@ func CalcHarvestYield(p *models.FarmPlot, cfg CropConfig) int {
 	return result
 }
 
+// checkLevelUp processes level-ups after exp gains.
+func checkLevelUp(userID uint) {
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		return
+	}
+	changed := false
+	for user.ExpVal >= user.ExpToLvl {
+		user.ExpVal -= user.ExpToLvl
+		user.Level++
+		user.ExpToLvl = int(float64(user.ExpToLvl) * 1.5)
+		changed = true
+	}
+	if changed {
+		database.DB.Model(&models.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+			"exp_val":    user.ExpVal,
+			"level":      user.Level,
+			"exp_to_lvl": user.ExpToLvl,
+		})
+	}
+}
+
 // ExecuteAction processes a player action with full server authority.
 // 1. ProcessFarm (time-diff calculation)
 // 2. Validate & execute the action
@@ -271,6 +297,10 @@ func ExecuteAction(userID uint, req dto.ActionRequest) (*dto.ActionResponse, err
 		message, err = doShovelAll(userID)
 	case "harvest_all":
 		message, err = doHarvestAll(userID)
+	case "sell_all":
+		message, err = doSellAll(userID)
+	case "buy_fertilizer":
+		message, err = doBuyFertilizer(userID, req)
 	default:
 		return nil, fmt.Errorf("unknown action: %s", req.Action)
 	}
@@ -399,18 +429,19 @@ func doFertilize(userID uint, req dto.ActionRequest) (string, error) {
 		return "", fmt.Errorf("crop already mature, cannot fertilize")
 	}
 	fertID := *req.FertID
-	if fertID < 0 || fertID >= len(CROP_CONFIGS) {
-		// Fert IDs go beyond crop range, use frontend FERTILIZERS index
-		// For now, return error for unknown fert
+	if fertID < 0 || fertID >= FERTILIZER_COUNT {
 		return "", fmt.Errorf("invalid fertilizer id: %d", fertID)
+	}
+	// Check and deduct from fertilizer inventory
+	var fi models.FertilizerInventory
+	if err := database.DB.Where("user_id = ? AND fert_index = ?", userID, fertID).First(&fi).Error; err != nil || fi.Count <= 0 {
+		return "", fmt.Errorf("没有该肥料，请先购买")
 	}
 	if p.FertUsed >= 3 {
 		return "", fmt.Errorf("already fertilized 3 times")
 	}
 	// TODO: check fert_stage_used, fert_ids_used, allowed_stages
-	// For now, accept any valid fert ID
 	cfg := CROP_CONFIGS[*p.CropID]
-	_ = cfg // will be used for speed fertilizer effect
 
 	// Apply effect based on fertID (0-6 matching frontend FERTILIZERS)
 	switch fertID {
@@ -452,6 +483,8 @@ func doFertilize(userID uint, req dto.ActionRequest) (string, error) {
 	}
 	p.FertUsed++
 	database.DB.Save(p)
+	// Deduct from fertilizer inventory
+	database.DB.Model(&fi).Update("count", gorm.Expr("count - 1"))
 	return "施肥成功!", nil
 }
 
@@ -505,6 +538,7 @@ func doHarvest(userID uint, req dto.ActionRequest) (string, error) {
 		p.LastProcessedAt = &now
 		return tx.Save(p).Error
 	})
+	checkLevelUp(userID)
 	return fmt.Sprintf("收获 %s x%d!", cropNameZH(cid), yieldCount), nil
 }
 
@@ -623,6 +657,7 @@ func doHarvestAll(userID uint) (string, error) {
 		count++
 	}
 	database.DB.Model(&models.User{}).Where("id = ?", userID).Update("exp_val", gorm.Expr("exp_val + ?", count*5))
+	checkLevelUp(userID)
 	return fmt.Sprintf("一键收获了 %d 个作物!", count), nil
 }
 
@@ -658,5 +693,80 @@ func cropNameZH(cid int) string {
 		return names[cid]
 	}
 	return "未知作物"
+}
+
+// doSellAll sells all inventory items server-side.
+func doSellAll(userID uint) (string, error) {
+	var items []models.InventoryItem
+	if err := database.DB.Where("user_id = ?", userID).Find(&items).Error; err != nil {
+		return "", fmt.Errorf("load inventory: %w", err)
+	}
+	totalCount := 0
+	totalGold := 0
+	for _, item := range items {
+		if item.Count <= 0 {
+			continue
+		}
+		cid := int(item.CropID)
+		if cid < 0 || cid >= len(CROP_CONFIGS) {
+			continue
+		}
+		totalCount += item.Count
+		totalGold += CROP_CONFIGS[cid].UnitSell * item.Count
+	}
+	if totalCount == 0 {
+		return "", fmt.Errorf("背包是空的")
+	}
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// Clear inventory
+		if err := tx.Where("user_id = ?", userID).Delete(&models.InventoryItem{}).Error; err != nil {
+			return err
+		}
+		// Add gold
+		return tx.Model(&models.User{}).Where("id = ?", userID).
+			Update("gold", gorm.Expr("gold + ?", totalGold)).Error
+	})
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("全部卖出 %d 个作物，获得 %d 金币", totalCount, totalGold), nil
+}
+
+// doBuyFertilizer purchases a fertilizer and adds it to inventory.
+func doBuyFertilizer(userID uint, req dto.ActionRequest) (string, error) {
+	if req.FertID == nil {
+		return "", fmt.Errorf("buy_fertilizer requires fert_id")
+	}
+	fertID := *req.FertID
+	if fertID < 0 || fertID >= FERTILIZER_COUNT {
+		return "", fmt.Errorf("invalid fertilizer id: %d", fertID)
+	}
+	cost := FERTILIZER_COSTS[fertID]
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+	if user.Gold < cost {
+		return "", fmt.Errorf("金币不足 (need %d)", cost)
+	}
+	fertNames := []string{"初级速生肥", "中级速生肥", "高级速生肥", "保湿肥", "防虫肥", "除草剂", "丰收肥"}
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// Deduct gold
+		if err := tx.Model(&models.User{}).Where("id = ?", userID).
+			Update("gold", gorm.Expr("gold - ?", cost)).Error; err != nil {
+			return err
+		}
+		// Upsert fertilizer inventory
+		var fi models.FertilizerInventory
+		if err := tx.Where("user_id = ? AND fert_index = ?", userID, fertID).First(&fi).Error; err != nil {
+			fi = models.FertilizerInventory{UserID: userID, FertIndex: fertID, Count: 1}
+			return tx.Create(&fi).Error
+		}
+		return tx.Model(&fi).Update("count", gorm.Expr("count + 1")).Error
+	})
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("购买 %s 成功!", fertNames[fertID]), nil
 }
 

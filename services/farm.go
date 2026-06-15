@@ -85,6 +85,28 @@ func SaveFarm(userID uint, req dto.SaveRequest) error {
 			}
 		}
 
+		// 4. Replace FertilizerInventory: delete old, insert new
+		if err := tx.Where("user_id = ?", userID).Delete(&models.FertilizerInventory{}).Error; err != nil {
+			return fmt.Errorf("delete old fertilizer inventory: %w", err)
+		}
+		for fertIdxStr, count := range req.FertilizerInv {
+			if count <= 0 {
+				continue
+			}
+			fertIdx, err := strconv.Atoi(fertIdxStr)
+			if err != nil {
+				continue
+			}
+			fi := models.FertilizerInventory{
+				UserID:    userID,
+				FertIndex: fertIdx,
+				Count:     count,
+			}
+			if err := tx.Create(&fi).Error; err != nil {
+				return fmt.Errorf("insert fertilizer %d: %w", fertIdx, err)
+			}
+		}
+
 		return nil
 	})
 }
@@ -144,6 +166,18 @@ func LoadFarm(userID uint) (*dto.LoadResponse, error) {
 		inv[strconv.Itoa(int(item.CropID))] = item.Count
 	}
 
+	// 4. Get Fertilizer Inventory
+	var fertItems []models.FertilizerInventory
+	if err := database.DB.Where("user_id = ?", userID).Find(&fertItems).Error; err != nil {
+		return nil, fmt.Errorf("load fertilizer inventory: %w", err)
+	}
+	fertInv := make(map[string]int)
+	for _, fi := range fertItems {
+		if fi.Count > 0 {
+			fertInv[strconv.Itoa(fi.FertIndex)] = fi.Count
+		}
+	}
+
 	return &dto.LoadResponse{
 		Gold:           user.Gold,
 		Level:          user.Level,
@@ -154,7 +188,7 @@ func LoadFarm(userID uint) (*dto.LoadResponse, error) {
 		ToolMode:       user.ToolMode,
 		Plots:          plotData,
 		Inventory:      inv,
-		FertilizerInv:  map[string]int{}, // TODO: add fertilizer_inventory table
+		FertilizerInv:  fertInv,
 		SelectedFert:   -1,
 	}, nil
 }
@@ -170,13 +204,11 @@ func SellCrop(userID uint, cropID int, count int) (*dto.SellResponse, error) {
 		return nil, errors.New("not enough items")
 	}
 
-	// Look up sell price from CropDef
-	var cropDef models.CropDef
-	if err := database.DB.Where("id = ?", cropID).First(&cropDef).Error; err != nil {
-		return nil, errors.New("crop definition not found")
+	// Look up sell price from CROP_CONFIGS (matches frontend CROPS[cid][6])
+	if cropID < 0 || cropID >= len(CROP_CONFIGS) {
+		return nil, fmt.Errorf("invalid crop id: %d", cropID)
 	}
-
-	goldEarned := cropDef.SellPrice * count
+	goldEarned := CROP_CONFIGS[cropID].UnitSell * count
 
 	err = database.DB.Transaction(func(tx *gorm.DB) error {
 		// Deduct inventory
