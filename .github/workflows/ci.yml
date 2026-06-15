@@ -68,6 +68,7 @@ jobs:
           # key: ${{ secrets.SERVER_SSH_KEY }}
           password: ${{ secrets.SERVER_PASSWORD }} # 同上
           script: |
+            export GIT_COMMIT=$(echo ${{ github.sha }} | cut -c1-7)
             cd ${{ secrets.DEPLOY_PATH }}
             docker-compose up -d --build
             docker image prune -f # 清理旧镜像释放空间
