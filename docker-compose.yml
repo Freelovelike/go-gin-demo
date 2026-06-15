@@ -1,4 +1,16 @@
 services:
+  app:
+    build: .
+    container_name: qqfarm-app
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+    restart: always
+
   postgres:
     image: postgres:16-alpine
     container_name: qqfarm-db
@@ -7,17 +19,19 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: qqfarm
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: always
 
   redis:
     image: redis:7-alpine
     container_name: qqfarm-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redisdata:/data
+    restart: always
 
 volumes:
   pgdata:
