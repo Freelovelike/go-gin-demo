@@ -369,10 +369,13 @@ func doPlant(userID uint, req dto.ActionRequest) (string, error) {
 	now := time.Now()
 	p.LastProcessedAt = &now
 
-	database.DB.Transaction(func(tx *gorm.DB) error {
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
 		tx.Model(&models.User{}).Where("id = ?", userID).Update("gold", gorm.Expr("gold - ?", cfg.SeedCost))
 		return tx.Save(p).Error
 	})
+	if err != nil {
+		return "", err
+	}
 	return fmt.Sprintf("种下了 %s!", cropNameZH(cid)), nil
 }
 
@@ -503,7 +506,7 @@ func doHarvest(userID uint, req dto.ActionRequest) (string, error) {
 	cfg := CROP_CONFIGS[cid]
 	yieldCount := CalcHarvestYield(p, cfg)
 
-	database.DB.Transaction(func(tx *gorm.DB) error {
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
 		// Add to inventory
 		var item models.InventoryItem
 		if err := tx.Where("user_id = ? AND crop_id = ?", userID, cid).First(&item).Error; err != nil {
@@ -538,6 +541,9 @@ func doHarvest(userID uint, req dto.ActionRequest) (string, error) {
 		p.LastProcessedAt = &now
 		return tx.Save(p).Error
 	})
+	if err != nil {
+		return "", err
+	}
 	checkLevelUp(userID)
 	return fmt.Sprintf("收获 %s x%d!", cropNameZH(cid), yieldCount), nil
 }
@@ -628,7 +634,7 @@ func doHarvestAll(userID uint) (string, error) {
 		cid := *p.CropID
 		cfg := CROP_CONFIGS[cid]
 		yieldCount := CalcHarvestYield(&p, cfg)
-		database.DB.Transaction(func(tx *gorm.DB) error {
+		err := database.DB.Transaction(func(tx *gorm.DB) error {
 			var item models.InventoryItem
 			if err := tx.Where("user_id = ? AND crop_id = ?", userID, cid).First(&item).Error; err != nil {
 				item = models.InventoryItem{UserID: userID, CropID: uint(cid), Count: yieldCount}
@@ -654,6 +660,9 @@ func doHarvestAll(userID uint) (string, error) {
 			p.LastProcessedAt = &now
 			return tx.Save(&p).Error
 		})
+		if err != nil {
+			return "", err
+		}
 		count++
 	}
 	database.DB.Model(&models.User{}).Where("id = ?", userID).Update("exp_val", gorm.Expr("exp_val + ?", count*5))
