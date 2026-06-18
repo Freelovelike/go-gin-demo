@@ -27,6 +27,10 @@ func SaveFarm(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.OK(gin.H{"saved": true}))
 }
 
+func LoadFarmConfig(c *gin.Context) {
+	c.JSON(http.StatusOK, dto.OK(services.LoadFarmConfig()))
+}
+
 // LoadFarm returns the full game save for the authenticated user.
 func LoadFarm(c *gin.Context) {
 	userID := c.MustGet("user_id").(uint)

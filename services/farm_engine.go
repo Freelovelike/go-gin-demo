@@ -27,6 +27,16 @@ type CropConfig struct {
 	MaxWeed   int     // [13]
 }
 
+type FertilizerConfig struct {
+	Name            string
+	Cost            int
+	Type            string
+	EffectValue     float64
+	AllowedStages   []int
+	PerCropLimit    int
+	MaxMinutesLimit int
+}
+
 // CROP_CONFIGS is indexed by crop_id (0-based), must stay in sync with frontend.
 var CROP_CONFIGS = []CropConfig{
 	{GrowTime: 12, SeedCost: 12, BaseYield: 4, UnitSell: 8, MinYield: 3, MaxYield: 5, DryRate: 0.06, BugRate: 0, WeedRate: 0.04, MaxBug: 0, MaxWeed: 1},        // 0 lettuce
@@ -45,23 +55,59 @@ var FERTILIZER_COSTS = []int{15, 40, 80, 30, 35, 25, 60}
 
 const FERTILIZER_COUNT = 7
 
+var FERTILIZER_CONFIGS = []FertilizerConfig{
+	{Name: "初级速生肥", Cost: 15, Type: "speed", EffectValue: 0.08, AllowedStages: []int{0, 1}, PerCropLimit: 1, MaxMinutesLimit: 10},
+	{Name: "中级速生肥", Cost: 40, Type: "speed", EffectValue: 0.12, AllowedStages: []int{1, 2}, PerCropLimit: 1, MaxMinutesLimit: 30},
+	{Name: "高级速生肥", Cost: 80, Type: "speed", EffectValue: 0.18, AllowedStages: []int{2}, PerCropLimit: 1, MaxMinutesLimit: 60},
+	{Name: "保湿肥", Cost: 30, Type: "water_protect", EffectValue: 7200.0, AllowedStages: []int{0, 1, 2}, PerCropLimit: 1, MaxMinutesLimit: 0},
+	{Name: "防虫肥", Cost: 35, Type: "bug_protect", EffectValue: 7200.0, AllowedStages: []int{1, 2}, PerCropLimit: 1, MaxMinutesLimit: 0},
+	{Name: "除草剂", Cost: 25, Type: "weed_protect", EffectValue: 7200.0, AllowedStages: []int{-1, 0, 1, 2}, PerCropLimit: 1, MaxMinutesLimit: 0},
+	{Name: "丰收肥", Cost: 60, Type: "yield_bonus", EffectValue: 0.10, AllowedStages: []int{2}, PerCropLimit: 1, MaxMinutesLimit: 0},
+}
+
 // Stage multipliers for event spawn rates.
 // 0=seed, 1=sprout, 2=growing, 3=mature
 var stageMultDry = [4]float64{0.5, 1.0, 1.2, 0.0}
 var stageMultBug = [4]float64{0.0, 0.7, 1.2, 0.0}
 var stageMultWeed = [4]float64{0.5, 1.0, 1.2, 0.0}
 
+const (
+	stageSeedEnd      = 0.18
+	stageSproutEnd    = 0.45
+	stageGrowingEnd   = 0.90
+	renderStageMidEnd = 0.72
+)
+
 func getCropStageEnum(progress float64) int {
-	if progress < 0.18 {
+	if progress < stageSeedEnd {
 		return 0 // seed
 	}
-	if progress < 0.45 {
+	if progress < stageSproutEnd {
 		return 1 // sprout
 	}
-	if progress < 0.90 {
+	if progress < stageGrowingEnd {
 		return 2 // growing
 	}
 	return 3 // mature
+}
+
+func intInSlice(values []int, target int) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func countFertilizerID(values []int, target int) int {
+	count := 0
+	for _, value := range values {
+		if value == target {
+			count++
+		}
+	}
+	return count
 }
 
 // ProcessFarm is the core engine: calculates all state changes since last_processed_at.
@@ -446,57 +492,65 @@ func doFertilize(userID uint, req dto.ActionRequest) (string, error) {
 	if p.FertUsed >= 3 {
 		return "", fmt.Errorf("already fertilized 3 times")
 	}
-	// TODO: check fert_stage_used, fert_ids_used, allowed_stages
-	cfg := CROP_CONFIGS[*p.CropID]
+	cropCfg := CROP_CONFIGS[*p.CropID]
+	fertCfg := FERTILIZER_CONFIGS[fertID]
+	stage := getCropStageEnum(p.Progress)
+	if !intInSlice(fertCfg.AllowedStages, stage) {
+		return "", fmt.Errorf("该肥料不能在当前阶段使用")
+	}
+	usedIDs := parseFertIDsUsed(p.FertIDsUsed)
+	if fertCfg.PerCropLimit > 0 && countFertilizerID(usedIDs, fertID) >= fertCfg.PerCropLimit {
+		return "", fmt.Errorf("该作物已使用过这种肥料")
+	}
+	stageUsed := parseFertStageUsed(p.FertStageUsed)
 
-	// Apply effect based on fertID (0-6 matching frontend FERTILIZERS)
-	switch fertID {
-	case 0: // 初级速生肥
-		reduction := cfg.GrowTime * 0.08
-		if reduction > 600 {
-			reduction = 600
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+
+	switch fertCfg.Type {
+	case "speed":
+		reduction := cropCfg.GrowTime * fertCfg.EffectValue
+		if fertCfg.MaxMinutesLimit > 0 {
+			maxReduction := float64(fertCfg.MaxMinutesLimit) * 60.0
+			if reduction > maxReduction {
+				reduction = maxReduction
+			}
 		}
-		p.Progress += reduction / cfg.GrowTime
-	case 1: // 中级速生肥
-		reduction := cfg.GrowTime * 0.12
-		if reduction > 1800 {
-			reduction = 1800
-		}
-		p.Progress += reduction / cfg.GrowTime
-	case 2: // 高级速生肥
-		reduction := cfg.GrowTime * 0.18
-		if reduction > 3600 {
-			reduction = 3600
-		}
-		p.Progress += reduction / cfg.GrowTime
-	case 3: // 保湿肥
-		var user models.User
-		database.DB.First(&user, userID)
-		p.WaterProtectUntil = user.GameTime + 7200
+		p.Progress += reduction / cropCfg.GrowTime
+	case "water_protect":
+		p.WaterProtectUntil = user.GameTime + fertCfg.EffectValue
 		if p.WaterState == 1 {
 			p.WaterState = 2
 			p.DryTimer = 0
 		}
-	case 4: // 防虫肥
-		var user models.User
-		database.DB.First(&user, userID)
-		p.BugProtectUntil = user.GameTime + 7200
-	case 5: // 除草剂
-		var user models.User
-		database.DB.First(&user, userID)
-		p.WeedProtectUntil = user.GameTime + 7200
-	case 6: // 丰收肥
-		p.YieldBonusRate += 0.10
+	case "bug_protect":
+		p.BugProtectUntil = user.GameTime + fertCfg.EffectValue
+	case "weed_protect":
+		p.WeedProtectUntil = user.GameTime + fertCfg.EffectValue
+	case "yield_bonus":
+		p.YieldBonusRate += fertCfg.EffectValue
 	default:
-		return "", fmt.Errorf("unknown fertilizer")
+		return "", fmt.Errorf("unknown fertilizer type: %s", fertCfg.Type)
 	}
 	if p.Progress > 1.0 {
 		p.Progress = 1.0
 	}
 	p.FertUsed++
-	database.DB.Save(p)
-	// Deduct from fertilizer inventory
-	database.DB.Model(&fi).Update("count", gorm.Expr("count - 1"))
+	stageKey := fmt.Sprintf("%d", stage)
+	stageUsed[stageKey] = stageUsed[stageKey] + 1
+	usedIDs = append(usedIDs, fertID)
+	p.FertStageUsed = encodeFertStageUsed(stageUsed)
+	p.FertIDsUsed = encodeFertIDsUsed(usedIDs)
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(p).Error; err != nil {
+			return err
+		}
+		return tx.Model(&fi).Update("count", gorm.Expr("count - 1")).Error
+	}); err != nil {
+		return "", err
+	}
 	return "施肥成功!", nil
 }
 
@@ -625,7 +679,10 @@ func doShovel(userID uint, req dto.ActionRequest) (string, error) {
 	p.BugCount = 0
 	p.WeedCount = 0
 	p.FertUsed = 0
+	p.FertStageUsed = "{}"
+	p.FertIDsUsed = "[]"
 	p.YieldBonusRate = 0
+	p.YieldLossRate = 0
 	now := time.Now()
 	p.LastProcessedAt = &now
 	database.DB.Save(p)
@@ -659,7 +716,10 @@ func doHarvestAll(userID uint) (string, error) {
 			p.BugCount = 0
 			p.WeedCount = 0
 			p.FertUsed = 0
+			p.FertStageUsed = "{}"
+			p.FertIDsUsed = "[]"
 			p.YieldBonusRate = 0
+			p.YieldLossRate = 0
 			p.LandWork++
 			if p.LandWork >= 30 && p.LandLevel < 4 {
 				p.LandLevel++
@@ -695,7 +755,10 @@ func doShovelAll(userID uint) (string, error) {
 		p.BugCount = 0
 		p.WeedCount = 0
 		p.FertUsed = 0
+		p.FertStageUsed = "{}"
+		p.FertIDsUsed = "[]"
 		p.YieldBonusRate = 0
+		p.YieldLossRate = 0
 		now := time.Now()
 		p.LastProcessedAt = &now
 		database.DB.Save(&p)

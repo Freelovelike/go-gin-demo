@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -24,6 +25,100 @@ func SaveFarm(userID uint, req dto.SaveRequest) error {
 		return fmt.Errorf("update user prefs: %w", err)
 	}
 	return nil
+}
+
+func LoadFarmConfig() *dto.FarmConfigResponse {
+	crops := make([]dto.CropConfigDTO, 0, len(CROP_CONFIGS))
+	cropNames := []string{"生菜", "辣椒", "茄子", "西红柿", "草莓", "玉米", "向日葵", "南瓜", "西瓜"}
+	cropKeys := []string{"lettuce", "pepper", "eggplant", "tomato", "strawberry", "corn", "sunflower", "pumpkin", "watermelon"}
+	for i, cfg := range CROP_CONFIGS {
+		crops = append(crops, dto.CropConfigDTO{
+			ID:         i,
+			Name:       cropNames[i],
+			TextureKey: cropKeys[i],
+			SeedCost:   cfg.SeedCost,
+			GrowTime:   cfg.GrowTime,
+			BaseYield:  cfg.BaseYield,
+			UnitSell:   cfg.UnitSell,
+			MinYield:   cfg.MinYield,
+			MaxYield:   cfg.MaxYield,
+			DryRate:    cfg.DryRate,
+			BugRate:    cfg.BugRate,
+			WeedRate:   cfg.WeedRate,
+			MaxBug:     cfg.MaxBug,
+			MaxWeed:    cfg.MaxWeed,
+		})
+	}
+
+	fertilizers := make([]dto.FertilizerConfigDTO, 0, len(FERTILIZER_CONFIGS))
+	for i, cfg := range FERTILIZER_CONFIGS {
+		allowedStages := append([]int(nil), cfg.AllowedStages...)
+		fertilizers = append(fertilizers, dto.FertilizerConfigDTO{
+			ID:              i,
+			Name:            cfg.Name,
+			Cost:            cfg.Cost,
+			Type:            cfg.Type,
+			EffectValue:     cfg.EffectValue,
+			AllowedStages:   allowedStages,
+			PerCropLimit:    cfg.PerCropLimit,
+			MaxMinutesLimit: cfg.MaxMinutesLimit,
+		})
+	}
+
+	return &dto.FarmConfigResponse{
+		Crops:       crops,
+		Fertilizers: fertilizers,
+		StageThresholds: dto.StageThresholdsDTO{
+			SeedEnd:    stageSeedEnd,
+			SproutEnd:  stageSproutEnd,
+			GrowingEnd: stageGrowingEnd,
+		},
+		RenderStageThresholds: []float64{stageSeedEnd, stageSproutEnd, renderStageMidEnd, stageGrowingEnd},
+	}
+}
+
+func parseFertStageUsed(raw string) map[string]int {
+	result := map[string]int{}
+	if raw == "" {
+		return result
+	}
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		return map[string]int{}
+	}
+	return result
+}
+
+func parseFertIDsUsed(raw string) []int {
+	result := []int{}
+	if raw == "" {
+		return result
+	}
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		return []int{}
+	}
+	return result
+}
+
+func encodeFertStageUsed(value map[string]int) string {
+	if value == nil {
+		return "{}"
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return "{}"
+	}
+	return string(raw)
+}
+
+func encodeFertIDsUsed(value []int) string {
+	if value == nil {
+		return "[]"
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return "[]"
+	}
+	return string(raw)
 }
 
 // LoadFarm retrieves the full save state for a user.
@@ -64,8 +159,8 @@ func LoadFarm(userID uint) (*dto.LoadResponse, error) {
 			WeedSince:         p.WeedSince,
 			WeedProtectUntil:  p.WeedProtectUntil,
 			FertUsed:          p.FertUsed,
-			FertStageUsed:     p.FertStageUsed,
-			FertIDsUsed:       p.FertIDsUsed,
+			FertStageUsed:     parseFertStageUsed(p.FertStageUsed),
+			FertIDsUsed:       parseFertIDsUsed(p.FertIDsUsed),
 			YieldBonusRate:    p.YieldBonusRate,
 			YieldLossRate:     p.YieldLossRate,
 		}

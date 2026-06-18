@@ -30,6 +30,7 @@ func Register(r *gin.Engine) {
 			// Farm routes
 			farm := protected.Group("/farm")
 			{
+				farm.GET("/config", handlers.LoadFarmConfig)
 				farm.POST("/save", handlers.SaveFarm)
 				farm.GET("/load", handlers.LoadFarm)
 				farm.POST("/sell", handlers.SellCrop)
