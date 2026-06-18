@@ -14,27 +14,27 @@ import (
 
 // CropConfig mirrors the frontend CROPS array (indices 5-13).
 type CropConfig struct {
-	GrowTime   float64 // seconds [3]
-	SeedCost   int     // [1]
-	BaseYield  int     // [5]
-	UnitSell   int     // [6]
-	MinYield   int     // [7]
-	MaxYield   int     // [8]
-	DryRate    float64 // per hour [9]
-	BugRate    float64 // per hour [10]
-	WeedRate   float64 // per hour [11]
-	MaxBug     int     // [12]
-	MaxWeed    int     // [13]
+	GrowTime  float64 // seconds [3]
+	SeedCost  int     // [1]
+	BaseYield int     // [5]
+	UnitSell  int     // [6]
+	MinYield  int     // [7]
+	MaxYield  int     // [8]
+	DryRate   float64 // per hour [9]
+	BugRate   float64 // per hour [10]
+	WeedRate  float64 // per hour [11]
+	MaxBug    int     // [12]
+	MaxWeed   int     // [13]
 }
 
 // CROP_CONFIGS is indexed by crop_id (0-based), must stay in sync with frontend.
 var CROP_CONFIGS = []CropConfig{
-	{GrowTime: 12, SeedCost: 12, BaseYield: 4, UnitSell: 8, MinYield: 3, MaxYield: 5, DryRate: 0.06, BugRate: 0, WeedRate: 0.04, MaxBug: 0, MaxWeed: 1},      // 0 lettuce
+	{GrowTime: 12, SeedCost: 12, BaseYield: 4, UnitSell: 8, MinYield: 3, MaxYield: 5, DryRate: 0.06, BugRate: 0, WeedRate: 0.04, MaxBug: 0, MaxWeed: 1},        // 0 lettuce
 	{GrowTime: 20, SeedCost: 20, BaseYield: 6, UnitSell: 10, MinYield: 4, MaxYield: 7, DryRate: 0.10, BugRate: 0.05, WeedRate: 0.05, MaxBug: 1, MaxWeed: 1},    // 1 pepper
 	{GrowTime: 32, SeedCost: 35, BaseYield: 5, UnitSell: 19, MinYield: 3, MaxYield: 6, DryRate: 0.10, BugRate: 0.08, WeedRate: 0.08, MaxBug: 2, MaxWeed: 2},    // 2 eggplant
 	{GrowTime: 48, SeedCost: 55, BaseYield: 8, UnitSell: 19, MinYield: 6, MaxYield: 10, DryRate: 0.14, BugRate: 0.09, WeedRate: 0.07, MaxBug: 2, MaxWeed: 2},   // 3 tomato
 	{GrowTime: 70, SeedCost: 80, BaseYield: 12, UnitSell: 18, MinYield: 9, MaxYield: 14, DryRate: 0.16, BugRate: 0.12, WeedRate: 0.10, MaxBug: 2, MaxWeed: 2},  // 4 strawberry
-	{GrowTime: 100, SeedCost: 120, BaseYield: 6, UnitSell: 57, MinYield: 4, MaxYield: 7, DryRate: 0.18, BugRate: 0.07, WeedRate: 0.12, MaxBug: 2, MaxWeed: 3}, // 5 corn
+	{GrowTime: 100, SeedCost: 120, BaseYield: 6, UnitSell: 57, MinYield: 4, MaxYield: 7, DryRate: 0.18, BugRate: 0.07, WeedRate: 0.12, MaxBug: 2, MaxWeed: 3},  // 5 corn
 	{GrowTime: 135, SeedCost: 170, BaseYield: 4, UnitSell: 125, MinYield: 3, MaxYield: 5, DryRate: 0.13, BugRate: 0.04, WeedRate: 0.09, MaxBug: 1, MaxWeed: 2}, // 6 sunflower
 	{GrowTime: 180, SeedCost: 240, BaseYield: 3, UnitSell: 240, MinYield: 2, MaxYield: 4, DryRate: 0.12, BugRate: 0.11, WeedRate: 0.15, MaxBug: 3, MaxWeed: 3}, // 7 pumpkin
 	{GrowTime: 230, SeedCost: 320, BaseYield: 5, UnitSell: 196, MinYield: 3, MaxYield: 7, DryRate: 0.20, BugRate: 0.12, WeedRate: 0.14, MaxBug: 3, MaxWeed: 3}, // 8 watermelon
@@ -42,12 +42,13 @@ var CROP_CONFIGS = []CropConfig{
 
 // FERTILIZER_COSTS is indexed by fertilizer_id (0-6), must match frontend FERTILIZERS[*][1].
 var FERTILIZER_COSTS = []int{15, 40, 80, 30, 35, 25, 60}
+
 const FERTILIZER_COUNT = 7
 
 // Stage multipliers for event spawn rates.
 // 0=seed, 1=sprout, 2=growing, 3=mature
-var stageMultDry  = [4]float64{0.5, 1.0, 1.2, 0.0}
-var stageMultBug  = [4]float64{0.0, 0.7, 1.2, 0.0}
+var stageMultDry = [4]float64{0.5, 1.0, 1.2, 0.0}
+var stageMultBug = [4]float64{0.0, 0.7, 1.2, 0.0}
 var stageMultWeed = [4]float64{0.5, 1.0, 1.2, 0.0}
 
 func getCropStageEnum(progress float64) int {
@@ -301,6 +302,8 @@ func ExecuteAction(userID uint, req dto.ActionRequest) (*dto.ActionResponse, err
 		message, err = doSellAll(userID)
 	case "buy_fertilizer":
 		message, err = doBuyFertilizer(userID, req)
+	case "reclaim":
+		message, err = doReclaim(userID, req)
 	default:
 		return nil, fmt.Errorf("unknown action: %s", req.Action)
 	}
@@ -450,15 +453,21 @@ func doFertilize(userID uint, req dto.ActionRequest) (string, error) {
 	switch fertID {
 	case 0: // 初级速生肥
 		reduction := cfg.GrowTime * 0.08
-		if reduction > 600 { reduction = 600 }
+		if reduction > 600 {
+			reduction = 600
+		}
 		p.Progress += reduction / cfg.GrowTime
 	case 1: // 中级速生肥
 		reduction := cfg.GrowTime * 0.12
-		if reduction > 1800 { reduction = 1800 }
+		if reduction > 1800 {
+			reduction = 1800
+		}
 		p.Progress += reduction / cfg.GrowTime
 	case 2: // 高级速生肥
 		reduction := cfg.GrowTime * 0.18
-		if reduction > 3600 { reduction = 3600 }
+		if reduction > 3600 {
+			reduction = 3600
+		}
 		p.Progress += reduction / cfg.GrowTime
 	case 3: // 保湿肥
 		var user models.User
@@ -779,3 +788,72 @@ func doBuyFertilizer(userID uint, req dto.ActionRequest) (string, error) {
 	return fmt.Sprintf("购买 %s 成功!", fertNames[fertID]), nil
 }
 
+// Reclaim constants — must match frontend formulas.
+const (
+	baseReclaimCost = 60
+	reclaimCostStep = 35
+	totalPlots      = 30
+)
+
+// doReclaim unlocks a plot with server-authoritative gold/level/order checks.
+func doReclaim(userID uint, req dto.ActionRequest) (string, error) {
+	if req.PlotIndex == nil {
+		return "", fmt.Errorf("reclaim requires plot_index")
+	}
+	idx := *req.PlotIndex
+	if idx < 0 || idx >= totalPlots {
+		return "", fmt.Errorf("invalid plot_index")
+	}
+
+	p, err := getPlot(userID, idx)
+	if err != nil {
+		return "", err
+	}
+	if p.Unlocked {
+		return "", fmt.Errorf("plot already unlocked")
+	}
+
+	// Enforce sequential unlock: the plot must be the first locked one.
+	var firstLocked models.FarmPlot
+	if err := database.DB.Where("user_id = ? AND unlocked = ?", userID, false).
+		Order("plot_index").First(&firstLocked).Error; err != nil {
+		return "", fmt.Errorf("no locked plot available")
+	}
+	if firstLocked.PlotIndex != idx {
+		return "", fmt.Errorf("请按顺序先开垦下一块土地")
+	}
+
+	requiredLevel := idx + 1
+	cost := baseReclaimCost + idx*reclaimCostStep
+
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+	if user.Level < requiredLevel {
+		return "", fmt.Errorf("等级不足! 这块地需要等级 %d", requiredLevel)
+	}
+	if user.Gold < cost {
+		return "", fmt.Errorf("金币不足! 开垦需要 %d 金币", cost)
+	}
+
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&models.User{}).Where("id = ?", userID).
+			Update("gold", gorm.Expr("gold - ?", cost)).Error; err != nil {
+			return err
+		}
+		p.Unlocked = true
+		p.LandLevel = 1
+		p.LandWork = 0
+		p.CropID = nil
+		p.Progress = 0
+		p.WetTimer = 0
+		now := time.Now()
+		p.LastProcessedAt = &now
+		return tx.Save(p).Error
+	})
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("开垦成功! 解锁第 %d 块地", idx+1), nil
+}

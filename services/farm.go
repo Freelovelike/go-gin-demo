@@ -12,103 +12,18 @@ import (
 	"gorm.io/gorm"
 )
 
-// SaveFarm performs a full save: updates User + replaces all 30 FarmPlots + replaces Inventory.
+// SaveFarm persists only non-authoritative client preferences (selected seed, tool mode).
+// All game state (gold, level, plots, inventory) is server-authoritative and is mutated
+// exclusively through /farm/action — the client cannot overwrite it here.
 func SaveFarm(userID uint, req dto.SaveRequest) error {
-	return database.DB.Transaction(func(tx *gorm.DB) error {
-		// 1. Update User fields
-		userUpdates := map[string]interface{}{
-			"gold":          req.Gold,
-			"level":         req.Level,
-			"exp_val":       req.ExpVal,
-			"exp_to_lvl":    req.ExpToLevel,
-			"game_time":     req.GameTime,
-			"selected_seed": req.SelectedSeed,
-			"tool_mode":     req.ToolMode,
-		}
-		if err := tx.Model(&models.User{}).Where("id = ?", userID).Updates(userUpdates).Error; err != nil {
-			return fmt.Errorf("update user: %w", err)
-		}
-
-		// 2. Upsert each FarmPlot
-		for _, p := range req.Plots {
-			plot := models.FarmPlot{
-				UserID:            userID,
-				PlotIndex:         p.PlotIndex,
-				Unlocked:          p.Unlocked,
-				LandLevel:         p.LandLevel,
-				LandWork:          p.LandWork,
-				CropID:            p.CropID,
-				Progress:          p.Progress,
-				WetTimer:          p.WetTimer,
-				WaterState:        p.WaterState,
-				DryTimer:          p.DryTimer,
-				WaterProtectUntil: p.WaterProtectUntil,
-				BugCount:          p.BugCount,
-				BugSince:          p.BugSince,
-				BugProtectUntil:   p.BugProtectUntil,
-				WeedCount:         p.WeedCount,
-				WeedSince:         p.WeedSince,
-				WeedProtectUntil:  p.WeedProtectUntil,
-				FertUsed:          p.FertUsed,
-				FertStageUsed:     p.FertStageUsed,
-				FertIDsUsed:       p.FertIDsUsed,
-				YieldBonusRate:    p.YieldBonusRate,
-				YieldLossRate:     p.YieldLossRate,
-			}
-			result := tx.Where("user_id = ? AND plot_index = ?", userID, p.PlotIndex).
-				Assign(plot).
-				FirstOrCreate(&models.FarmPlot{})
-			if result.Error != nil {
-				return fmt.Errorf("upsert plot %d: %w", p.PlotIndex, result.Error)
-			}
-		}
-
-		// 3. Replace Inventory: delete old, insert new
-		if err := tx.Where("user_id = ?", userID).Delete(&models.InventoryItem{}).Error; err != nil {
-			return fmt.Errorf("delete old inventory: %w", err)
-		}
-		for cropIDStr, count := range req.Inventory {
-			if count <= 0 {
-				continue
-			}
-			cropID, err := strconv.Atoi(cropIDStr)
-			if err != nil {
-				continue
-			}
-			item := models.InventoryItem{
-				UserID: userID,
-				CropID: uint(cropID),
-				Count:  count,
-			}
-			if err := tx.Create(&item).Error; err != nil {
-				return fmt.Errorf("insert inventory crop %d: %w", cropID, err)
-			}
-		}
-
-		// 4. Replace FertilizerInventory: delete old, insert new
-		if err := tx.Where("user_id = ?", userID).Delete(&models.FertilizerInventory{}).Error; err != nil {
-			return fmt.Errorf("delete old fertilizer inventory: %w", err)
-		}
-		for fertIdxStr, count := range req.FertilizerInv {
-			if count <= 0 {
-				continue
-			}
-			fertIdx, err := strconv.Atoi(fertIdxStr)
-			if err != nil {
-				continue
-			}
-			fi := models.FertilizerInventory{
-				UserID:    userID,
-				FertIndex: fertIdx,
-				Count:     count,
-			}
-			if err := tx.Create(&fi).Error; err != nil {
-				return fmt.Errorf("insert fertilizer %d: %w", fertIdx, err)
-			}
-		}
-
-		return nil
-	})
+	userUpdates := map[string]interface{}{
+		"selected_seed": req.SelectedSeed,
+		"tool_mode":     req.ToolMode,
+	}
+	if err := database.DB.Model(&models.User{}).Where("id = ?", userID).Updates(userUpdates).Error; err != nil {
+		return fmt.Errorf("update user prefs: %w", err)
+	}
+	return nil
 }
 
 // LoadFarm retrieves the full save state for a user.
@@ -179,17 +94,17 @@ func LoadFarm(userID uint) (*dto.LoadResponse, error) {
 	}
 
 	return &dto.LoadResponse{
-		Gold:           user.Gold,
-		Level:          user.Level,
-		ExpVal:         user.ExpVal,
-		ExpToLevel:     user.ExpToLvl,
-		GameTime:       user.GameTime,
-		SelectedSeed:   user.SelectedSeed,
-		ToolMode:       user.ToolMode,
-		Plots:          plotData,
-		Inventory:      inv,
-		FertilizerInv:  fertInv,
-		SelectedFert:   -1,
+		Gold:          user.Gold,
+		Level:         user.Level,
+		ExpVal:        user.ExpVal,
+		ExpToLevel:    user.ExpToLvl,
+		GameTime:      user.GameTime,
+		SelectedSeed:  user.SelectedSeed,
+		ToolMode:      user.ToolMode,
+		Plots:         plotData,
+		Inventory:     inv,
+		FertilizerInv: fertInv,
+		SelectedFert:  -1,
 	}, nil
 }
 
