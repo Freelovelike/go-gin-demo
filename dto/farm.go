@@ -1,19 +1,13 @@
 package dto
 
-// SaveRequest contains non-authoritative client preferences.
+// SaveRequest carries the only client-owned, non-authoritative preferences the
+// server persists via /farm/save. All real game state (gold, level, plots,
+// inventory) is server-authoritative and is mutated exclusively through
+// /farm/action — the client cannot write it here. The client may still POST a
+// larger body; extra fields are simply ignored during JSON binding.
 type SaveRequest struct {
-	Gold          int            `json:"gold"`
-	Level         int            `json:"level"`
-	ExpVal        int            `json:"exp_val"`
-	ExpToLevel    int            `json:"exp_to_level"`
-	GameTime      float64        `json:"game_time"`
-	SelectedSeed  int            `json:"selected_seed"`
-	ToolMode      int            `json:"tool_mode"`
-	SavedAt       int64          `json:"saved_at"`
-	Plots         []PlotData     `json:"plots"`
-	Inventory     map[string]int `json:"inventory"`
-	FertilizerInv map[string]int `json:"fertilizer_inventory"`
-	SelectedFert  int            `json:"selected_fertilizer"`
+	SelectedSeed int `json:"selected_seed"`
+	ToolMode     int `json:"tool_mode"`
 }
 
 // PlotData represents a single farm plot in the save payload.
@@ -41,9 +35,21 @@ type PlotData struct {
 	YieldLossRate     float64        `json:"yield_loss_rate"`
 }
 
-// LoadResponse is the full game save returned by the server.
-// It has the same shape as SaveRequest so the client can parse it identically.
-type LoadResponse = SaveRequest
+// LoadResponse is the full game save returned by the server on load and after
+// every action. It is server-authoritative — the client renders it verbatim.
+type LoadResponse struct {
+	Gold          int            `json:"gold"`
+	Level         int            `json:"level"`
+	ExpVal        int            `json:"exp_val"`
+	ExpToLevel    int            `json:"exp_to_level"`
+	GameTime      float64        `json:"game_time"`
+	SelectedSeed  int            `json:"selected_seed"`
+	ToolMode      int            `json:"tool_mode"`
+	Plots         []PlotData     `json:"plots"`
+	Inventory     map[string]int `json:"inventory"`
+	FertilizerInv map[string]int `json:"fertilizer_inventory"`
+	SelectedFert  int            `json:"selected_fertilizer"`
+}
 
 // SellRequest is sent when the client sells inventory items.
 type SellRequest struct {

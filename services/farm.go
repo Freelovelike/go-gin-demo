@@ -29,13 +29,11 @@ func SaveFarm(userID uint, req dto.SaveRequest) error {
 
 func LoadFarmConfig() *dto.FarmConfigResponse {
 	crops := make([]dto.CropConfigDTO, 0, len(CROP_CONFIGS))
-	cropNames := []string{"生菜", "辣椒", "茄子", "西红柿", "草莓", "玉米", "向日葵", "南瓜", "西瓜"}
-	cropKeys := []string{"lettuce", "pepper", "eggplant", "tomato", "strawberry", "corn", "sunflower", "pumpkin", "watermelon"}
 	for i, cfg := range CROP_CONFIGS {
 		crops = append(crops, dto.CropConfigDTO{
 			ID:         i,
-			Name:       cropNames[i],
-			TextureKey: cropKeys[i],
+			Name:       cfg.Name,
+			TextureKey: cfg.Key,
 			SeedCost:   cfg.SeedCost,
 			GrowTime:   cfg.GrowTime,
 			BaseYield:  cfg.BaseYield,
@@ -123,7 +121,16 @@ func encodeFertIDsUsed(value []int) string {
 
 // LoadFarm retrieves the full save state for a user.
 // First runs ProcessFarm to calculate elapsed time changes.
+// It acquires the per-user write lock because ProcessFarm mutates state.
 func LoadFarm(userID uint) (*dto.LoadResponse, error) {
+	defer lockUser(userID)()
+	return loadFarmLocked(userID)
+}
+
+// loadFarmLocked is the lock-free body of LoadFarm. Callers that already hold
+// the per-user lock (e.g. ExecuteAction) must use this to avoid re-entrant
+// deadlock on the non-reentrant sync.Mutex.
+func loadFarmLocked(userID uint) (*dto.LoadResponse, error) {
 	if err := ProcessFarm(userID); err != nil {
 		return nil, fmt.Errorf("process farm: %w", err)
 	}
@@ -205,6 +212,8 @@ func LoadFarm(userID uint) (*dto.LoadResponse, error) {
 
 // SellCrop sells inventory items server-side (anti-cheat).
 func SellCrop(userID uint, cropID int, count int) (*dto.SellResponse, error) {
+	defer lockUser(userID)()
+
 	var item models.InventoryItem
 	err := database.DB.Where("user_id = ? AND crop_id = ?", userID, cropID).First(&item).Error
 	if err != nil {

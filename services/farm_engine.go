@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 
 // CropConfig mirrors the frontend CROPS array (indices 5-13).
 type CropConfig struct {
+	Name      string  // [0] Chinese display name
+	Key       string  // [4] texture key, e.g. "tomato"
 	GrowTime  float64 // seconds [3]
 	SeedCost  int     // [1]
 	BaseYield int     // [5]
@@ -39,15 +42,15 @@ type FertilizerConfig struct {
 
 // CROP_CONFIGS is indexed by crop_id (0-based), must stay in sync with frontend.
 var CROP_CONFIGS = []CropConfig{
-	{GrowTime: 12, SeedCost: 12, BaseYield: 4, UnitSell: 8, MinYield: 3, MaxYield: 5, DryRate: 0.06, BugRate: 0, WeedRate: 0.04, MaxBug: 0, MaxWeed: 1},        // 0 lettuce
-	{GrowTime: 20, SeedCost: 20, BaseYield: 6, UnitSell: 10, MinYield: 4, MaxYield: 7, DryRate: 0.10, BugRate: 0.05, WeedRate: 0.05, MaxBug: 1, MaxWeed: 1},    // 1 pepper
-	{GrowTime: 32, SeedCost: 35, BaseYield: 5, UnitSell: 19, MinYield: 3, MaxYield: 6, DryRate: 0.10, BugRate: 0.08, WeedRate: 0.08, MaxBug: 2, MaxWeed: 2},    // 2 eggplant
-	{GrowTime: 48, SeedCost: 55, BaseYield: 8, UnitSell: 19, MinYield: 6, MaxYield: 10, DryRate: 0.14, BugRate: 0.09, WeedRate: 0.07, MaxBug: 2, MaxWeed: 2},   // 3 tomato
-	{GrowTime: 70, SeedCost: 80, BaseYield: 12, UnitSell: 18, MinYield: 9, MaxYield: 14, DryRate: 0.16, BugRate: 0.12, WeedRate: 0.10, MaxBug: 2, MaxWeed: 2},  // 4 strawberry
-	{GrowTime: 100, SeedCost: 120, BaseYield: 6, UnitSell: 57, MinYield: 4, MaxYield: 7, DryRate: 0.18, BugRate: 0.07, WeedRate: 0.12, MaxBug: 2, MaxWeed: 3},  // 5 corn
-	{GrowTime: 135, SeedCost: 170, BaseYield: 4, UnitSell: 125, MinYield: 3, MaxYield: 5, DryRate: 0.13, BugRate: 0.04, WeedRate: 0.09, MaxBug: 1, MaxWeed: 2}, // 6 sunflower
-	{GrowTime: 180, SeedCost: 240, BaseYield: 3, UnitSell: 240, MinYield: 2, MaxYield: 4, DryRate: 0.12, BugRate: 0.11, WeedRate: 0.15, MaxBug: 3, MaxWeed: 3}, // 7 pumpkin
-	{GrowTime: 230, SeedCost: 320, BaseYield: 5, UnitSell: 196, MinYield: 3, MaxYield: 7, DryRate: 0.20, BugRate: 0.12, WeedRate: 0.14, MaxBug: 3, MaxWeed: 3}, // 8 watermelon
+	{Name: "生菜", Key: "lettuce", GrowTime: 12, SeedCost: 12, BaseYield: 4, UnitSell: 8, MinYield: 3, MaxYield: 5, DryRate: 0.06, BugRate: 0, WeedRate: 0.04, MaxBug: 0, MaxWeed: 1},          // 0 lettuce
+	{Name: "辣椒", Key: "pepper", GrowTime: 20, SeedCost: 20, BaseYield: 6, UnitSell: 10, MinYield: 4, MaxYield: 7, DryRate: 0.10, BugRate: 0.05, WeedRate: 0.05, MaxBug: 1, MaxWeed: 1},      // 1 pepper
+	{Name: "茄子", Key: "eggplant", GrowTime: 32, SeedCost: 35, BaseYield: 5, UnitSell: 19, MinYield: 3, MaxYield: 6, DryRate: 0.10, BugRate: 0.08, WeedRate: 0.08, MaxBug: 2, MaxWeed: 2},    // 2 eggplant
+	{Name: "西红柿", Key: "tomato", GrowTime: 48, SeedCost: 55, BaseYield: 8, UnitSell: 19, MinYield: 6, MaxYield: 10, DryRate: 0.14, BugRate: 0.09, WeedRate: 0.07, MaxBug: 2, MaxWeed: 2},    // 3 tomato
+	{Name: "草莓", Key: "strawberry", GrowTime: 70, SeedCost: 80, BaseYield: 12, UnitSell: 18, MinYield: 9, MaxYield: 14, DryRate: 0.16, BugRate: 0.12, WeedRate: 0.10, MaxBug: 2, MaxWeed: 2}, // 4 strawberry
+	{Name: "玉米", Key: "corn", GrowTime: 100, SeedCost: 120, BaseYield: 6, UnitSell: 57, MinYield: 4, MaxYield: 7, DryRate: 0.18, BugRate: 0.07, WeedRate: 0.12, MaxBug: 2, MaxWeed: 3},       // 5 corn
+	{Name: "向日葵", Key: "sunflower", GrowTime: 135, SeedCost: 170, BaseYield: 4, UnitSell: 125, MinYield: 3, MaxYield: 5, DryRate: 0.13, BugRate: 0.04, WeedRate: 0.09, MaxBug: 1, MaxWeed: 2}, // 6 sunflower
+	{Name: "南瓜", Key: "pumpkin", GrowTime: 180, SeedCost: 240, BaseYield: 3, UnitSell: 240, MinYield: 2, MaxYield: 4, DryRate: 0.12, BugRate: 0.11, WeedRate: 0.15, MaxBug: 3, MaxWeed: 3},   // 7 pumpkin
+	{Name: "西瓜", Key: "watermelon", GrowTime: 230, SeedCost: 320, BaseYield: 5, UnitSell: 196, MinYield: 3, MaxYield: 7, DryRate: 0.20, BugRate: 0.12, WeedRate: 0.14, MaxBug: 3, MaxWeed: 3}, // 8 watermelon
 }
 
 // FERTILIZER_COSTS is indexed by fertilizer_id (0-6), must match frontend FERTILIZERS[*][1].
@@ -108,6 +111,24 @@ func countFertilizerID(values []int, target int) int {
 		}
 	}
 	return count
+}
+
+// eventProbability returns the chance of at least one event occurring across
+// `cycles` 10-second check windows, given a per-hour `rate` and a stage
+// multiplier `mult`. Equivalent to the old per-cycle Bernoulli loop but in
+// closed form: 1 - (1-p)^cycles, with no iteration and no offline cap.
+func eventProbability(rate, mult, cycles float64) float64 {
+	if rate <= 0 || mult <= 0 || cycles <= 0 {
+		return 0
+	}
+	pPerCycle := rate * (10.0 / 3600.0) * mult
+	if pPerCycle <= 0 {
+		return 0
+	}
+	if pPerCycle >= 1 {
+		return 1
+	}
+	return 1 - math.Pow(1-pPerCycle, cycles)
 }
 
 // ProcessFarm is the core engine: calculates all state changes since last_processed_at.
@@ -187,40 +208,43 @@ func ProcessFarm(userID uint) error {
 			}
 		}
 
-		// ---- Spawn events (every 10-second check cycle) ----
-		checkCycles := int(elapsed / 10.0)
-		if checkCycles > 1000 {
-			checkCycles = 1000 // cap for very long offline
-		}
+		// ---- Spawn events (closed-form over the elapsed window) ----
+		// Each event was originally Bernoulli-sampled once per 10s cycle. Sampling
+		// in a loop is O(elapsed) and was capped at 1000 cycles, which silently
+		// changed the rules past ~2.8h offline. Instead, compute the probability
+		// of at least one event across all cycles in closed form:
+		//   pAtLeastOne = 1 - (1 - pPerCycle)^cycles
+		// and draw once (dry) or once per open slot (bug/weed).
+		cycles := elapsed / 10.0
 		stage = getCropStageEnum(p.Progress) // re-check after growth
 		if stage < 3 {
 			smDry := stageMultDry[stage]
 			smBug := stageMultBug[stage]
 			smWeed := stageMultWeed[stage]
 
-			for j := 0; j < checkCycles; j++ {
-				// Dry event
-				if p.WaterState == 0 && now.Unix() >= int64(p.WaterProtectUntil) {
-					if rand.Float64() < cfg.DryRate*(10.0/3600.0)*smDry {
-						p.WaterState = 1
+			// Dry: single binary state.
+			if p.WaterState == 0 && now.Unix() >= int64(p.WaterProtectUntil) {
+				if rand.Float64() < eventProbability(cfg.DryRate, smDry, cycles) {
+					p.WaterState = 1
+				}
+			}
+			// Bug: roll each remaining slot up to MaxBug.
+			if p.BugCount < cfg.MaxBug && now.Unix() >= int64(p.BugProtectUntil) {
+				prob := eventProbability(cfg.BugRate, smBug, cycles)
+				for p.BugCount < cfg.MaxBug && rand.Float64() < prob {
+					p.BugCount++
+					if p.BugSince == 0 {
+						p.BugSince = user.GameTime
 					}
 				}
-				// Bug event
-				if p.BugCount < cfg.MaxBug && now.Unix() >= int64(p.BugProtectUntil) {
-					if rand.Float64() < cfg.BugRate*(10.0/3600.0)*smBug {
-						p.BugCount++
-						if p.BugSince == 0 {
-							p.BugSince = user.GameTime
-						}
-					}
-				}
-				// Weed event
-				if p.WeedCount < cfg.MaxWeed && now.Unix() >= int64(p.WeedProtectUntil) {
-					if rand.Float64() < cfg.WeedRate*(10.0/3600.0)*smWeed {
-						p.WeedCount++
-						if p.WeedSince == 0 {
-							p.WeedSince = user.GameTime
-						}
+			}
+			// Weed: roll each remaining slot up to MaxWeed.
+			if p.WeedCount < cfg.MaxWeed && now.Unix() >= int64(p.WeedProtectUntil) {
+				prob := eventProbability(cfg.WeedRate, smWeed, cycles)
+				for p.WeedCount < cfg.MaxWeed && rand.Float64() < prob {
+					p.WeedCount++
+					if p.WeedSince == 0 {
+						p.WeedSince = user.GameTime
 					}
 				}
 			}
@@ -317,6 +341,11 @@ func checkLevelUp(userID uint) {
 // 2. Validate & execute the action
 // 3. Return full farm state
 func ExecuteAction(userID uint, req dto.ActionRequest) (*dto.ActionResponse, error) {
+	// Serialize all writes for this user — the client fires actions from
+	// several parallel HTTPRequest nodes, so without this two requests could
+	// both pass a gold check before either deducts.
+	defer lockUser(userID)()
+
 	// Step 1: Process elapsed time
 	if err := ProcessFarm(userID); err != nil {
 		return nil, fmt.Errorf("process farm: %w", err)
@@ -358,7 +387,7 @@ func ExecuteAction(userID uint, req dto.ActionRequest) (*dto.ActionResponse, err
 	}
 
 	// Step 3: Return full state
-	loadResp, err := LoadFarm(userID)
+	loadResp, err := loadFarmLocked(userID)
 	if err != nil {
 		return nil, fmt.Errorf("load farm after action: %w", err)
 	}
@@ -554,6 +583,71 @@ func doFertilize(userID uint, req dto.ActionRequest) (string, error) {
 	return "施肥成功!", nil
 }
 
+// Land upgrade rules — must match the frontend constants.
+const (
+	landUpgradeWorkRequired = 30
+	landLevelMax            = 4
+)
+
+// clearPlot resets a plot's crop, care, and fertilizer state. Shared by both
+// harvest and shovel paths so the (long) reset stays in one place.
+func clearPlot(p *models.FarmPlot) {
+	p.CropID = nil
+	p.Progress = 0
+	p.WetTimer = 0
+	p.WaterState = 0
+	p.DryTimer = 0
+	p.BugCount = 0
+	p.BugSince = 0
+	p.WeedCount = 0
+	p.WeedSince = 0
+	p.FertUsed = 0
+	p.FertStageUsed = "{}"
+	p.FertIDsUsed = "[]"
+	p.YieldBonusRate = 0
+	p.YieldLossRate = 0
+	now := time.Now()
+	p.LastProcessedAt = &now
+}
+
+// applyLandWork credits one unit of farming work and upgrades the land level
+// when the threshold is reached. (B5: single source for the upgrade rule.)
+func applyLandWork(p *models.FarmPlot) {
+	p.LandWork++
+	if p.LandWork >= landUpgradeWorkRequired && p.LandLevel < landLevelMax {
+		p.LandLevel++
+		p.LandWork = 0
+	}
+}
+
+// addToInventory upserts the inventory count for a crop within a transaction.
+func addToInventory(tx *gorm.DB, userID uint, cid, amount int) error {
+	var item models.InventoryItem
+	if err := tx.Where("user_id = ? AND crop_id = ?", userID, cid).First(&item).Error; err != nil {
+		item = models.InventoryItem{UserID: userID, CropID: uint(cid), Count: amount}
+		return tx.Create(&item).Error
+	}
+	return tx.Model(&item).Update("count", gorm.Expr("count + ?", amount)).Error
+}
+
+// harvestOnePlot harvests a single (assumed-mature) plot inside a transaction:
+// credits inventory, resets the plot, and applies land work. Returns the yield.
+// Exp is awarded by the caller because single vs. bulk harvest use different
+// exp formulas.
+func harvestOnePlot(tx *gorm.DB, userID uint, p *models.FarmPlot) (int, error) {
+	cid := *p.CropID
+	yieldCount := CalcHarvestYield(p, CROP_CONFIGS[cid])
+	if err := addToInventory(tx, userID, cid, yieldCount); err != nil {
+		return 0, err
+	}
+	clearPlot(p)
+	applyLandWork(p)
+	if err := tx.Save(p).Error; err != nil {
+		return 0, err
+	}
+	return yieldCount, nil
+}
+
 func doHarvest(userID uint, req dto.ActionRequest) (string, error) {
 	if req.PlotIndex == nil {
 		return "", fmt.Errorf("harvest requires plot_index")
@@ -566,43 +660,16 @@ func doHarvest(userID uint, req dto.ActionRequest) (string, error) {
 		return "", fmt.Errorf("crop not mature")
 	}
 	cid := *p.CropID
-	cfg := CROP_CONFIGS[cid]
-	yieldCount := CalcHarvestYield(p, cfg)
 
+	var yieldCount int
 	err = database.DB.Transaction(func(tx *gorm.DB) error {
-		// Add to inventory
-		var item models.InventoryItem
-		if err := tx.Where("user_id = ? AND crop_id = ?", userID, cid).First(&item).Error; err != nil {
-			item = models.InventoryItem{UserID: userID, CropID: uint(cid), Count: yieldCount}
-			tx.Create(&item)
-		} else {
-			tx.Model(&item).Update("count", gorm.Expr("count + ?", yieldCount))
+		var e error
+		yieldCount, e = harvestOnePlot(tx, userID, p)
+		if e != nil {
+			return e
 		}
-		// Add exp
-		tx.Model(&models.User{}).Where("id = ?", userID).Update("exp_val", gorm.Expr("exp_val + ?", cfg.BaseYield))
-		// Reset plot
-		p.CropID = nil
-		p.Progress = 0
-		p.WetTimer = 0
-		p.WaterState = 0
-		p.DryTimer = 0
-		p.BugCount = 0
-		p.BugSince = 0
-		p.WeedCount = 0
-		p.WeedSince = 0
-		p.FertUsed = 0
-		p.FertStageUsed = "{}"
-		p.FertIDsUsed = "[]"
-		p.YieldBonusRate = 0
-		p.YieldLossRate = 0
-		p.LandWork++
-		if p.LandWork >= 30 && p.LandLevel < 4 {
-			p.LandLevel++
-			p.LandWork = 0
-		}
-		now := time.Now()
-		p.LastProcessedAt = &now
-		return tx.Save(p).Error
+		return tx.Model(&models.User{}).Where("id = ?", userID).
+			Update("exp_val", gorm.Expr("exp_val + ?", CROP_CONFIGS[cid].BaseYield)).Error
 	})
 	if err != nil {
 		return "", err
@@ -610,6 +677,7 @@ func doHarvest(userID uint, req dto.ActionRequest) (string, error) {
 	checkLevelUp(userID)
 	return fmt.Sprintf("收获 %s x%d!", cropNameZH(cid), yieldCount), nil
 }
+
 
 func doRemoveBug(userID uint, req dto.ActionRequest) (string, error) {
 	if req.PlotIndex == nil {
@@ -671,20 +739,7 @@ func doShovel(userID uint, req dto.ActionRequest) (string, error) {
 		return "", fmt.Errorf("no crop to shovel")
 	}
 	name := cropNameZH(*p.CropID)
-	p.CropID = nil
-	p.Progress = 0
-	p.WetTimer = 0
-	p.WaterState = 0
-	p.DryTimer = 0
-	p.BugCount = 0
-	p.WeedCount = 0
-	p.FertUsed = 0
-	p.FertStageUsed = "{}"
-	p.FertIDsUsed = "[]"
-	p.YieldBonusRate = 0
-	p.YieldLossRate = 0
-	now := time.Now()
-	p.LastProcessedAt = &now
+	clearPlot(p)
 	database.DB.Save(p)
 	return fmt.Sprintf("铲除了 %s", name), nil
 }
@@ -696,45 +751,21 @@ func doHarvestAll(userID uint) (string, error) {
 		return "", fmt.Errorf("no mature crops")
 	}
 	count := 0
-	for _, p := range plots {
-		cid := *p.CropID
-		cfg := CROP_CONFIGS[cid]
-		yieldCount := CalcHarvestYield(&p, cfg)
-		err := database.DB.Transaction(func(tx *gorm.DB) error {
-			var item models.InventoryItem
-			if err := tx.Where("user_id = ? AND crop_id = ?", userID, cid).First(&item).Error; err != nil {
-				item = models.InventoryItem{UserID: userID, CropID: uint(cid), Count: yieldCount}
-				tx.Create(&item)
-			} else {
-				tx.Model(&item).Update("count", gorm.Expr("count + ?", yieldCount))
+	// Single transaction over all plots: previously each plot ran its own
+	// transaction, so a mid-loop failure left a half-harvested farm.
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		for i := range plots {
+			if _, e := harvestOnePlot(tx, userID, &plots[i]); e != nil {
+				return e
 			}
-			p.CropID = nil
-			p.Progress = 0
-			p.WetTimer = 0
-			p.WaterState = 0
-			p.DryTimer = 0
-			p.BugCount = 0
-			p.WeedCount = 0
-			p.FertUsed = 0
-			p.FertStageUsed = "{}"
-			p.FertIDsUsed = "[]"
-			p.YieldBonusRate = 0
-			p.YieldLossRate = 0
-			p.LandWork++
-			if p.LandWork >= 30 && p.LandLevel < 4 {
-				p.LandLevel++
-				p.LandWork = 0
-			}
-			now := time.Now()
-			p.LastProcessedAt = &now
-			return tx.Save(&p).Error
-		})
-		if err != nil {
-			return "", err
+			count++
 		}
-		count++
+		return tx.Model(&models.User{}).Where("id = ?", userID).
+			Update("exp_val", gorm.Expr("exp_val + ?", count*5)).Error
+	})
+	if err != nil {
+		return "", err
 	}
-	database.DB.Model(&models.User{}).Where("id = ?", userID).Update("exp_val", gorm.Expr("exp_val + ?", count*5))
 	checkLevelUp(userID)
 	return fmt.Sprintf("一键收获了 %d 个作物!", count), nil
 }
@@ -746,32 +777,26 @@ func doShovelAll(userID uint) (string, error) {
 		return "", fmt.Errorf("no crops to shovel")
 	}
 	count := 0
-	for _, p := range plots {
-		p.CropID = nil
-		p.Progress = 0
-		p.WetTimer = 0
-		p.WaterState = 0
-		p.DryTimer = 0
-		p.BugCount = 0
-		p.WeedCount = 0
-		p.FertUsed = 0
-		p.FertStageUsed = "{}"
-		p.FertIDsUsed = "[]"
-		p.YieldBonusRate = 0
-		p.YieldLossRate = 0
-		now := time.Now()
-		p.LastProcessedAt = &now
-		database.DB.Save(&p)
-		count++
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		for i := range plots {
+			clearPlot(&plots[i])
+			if e := tx.Save(&plots[i]).Error; e != nil {
+				return e
+			}
+			count++
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
 	}
 	return fmt.Sprintf("铲除了全部 %d 个作物!", count), nil
 }
 
-// cropNameZH returns the Chinese name for a crop ID.
+// cropNameZH returns the Chinese name for a crop ID (single source: CROP_CONFIGS).
 func cropNameZH(cid int) string {
-	names := []string{"生菜", "辣椒", "茄子", "西红柿", "草莓", "玉米", "向日葵", "南瓜", "西瓜"}
-	if cid >= 0 && cid < len(names) {
-		return names[cid]
+	if cid >= 0 && cid < len(CROP_CONFIGS) {
+		return CROP_CONFIGS[cid].Name
 	}
 	return "未知作物"
 }
@@ -830,7 +855,6 @@ func doBuyFertilizer(userID uint, req dto.ActionRequest) (string, error) {
 	if user.Gold < cost {
 		return "", fmt.Errorf("金币不足 (need %d)", cost)
 	}
-	fertNames := []string{"初级速生肥", "中级速生肥", "高级速生肥", "保湿肥", "防虫肥", "除草剂", "丰收肥"}
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		// Deduct gold
 		if err := tx.Model(&models.User{}).Where("id = ?", userID).
@@ -848,7 +872,7 @@ func doBuyFertilizer(userID uint, req dto.ActionRequest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("购买 %s 成功!", fertNames[fertID]), nil
+	return fmt.Sprintf("购买 %s 成功!", FERTILIZER_CONFIGS[fertID].Name), nil
 }
 
 // Reclaim constants — must match frontend formulas.
