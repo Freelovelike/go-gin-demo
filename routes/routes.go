@@ -10,6 +10,7 @@ import (
 func Register(r *gin.Engine) {
 	// Health check (no auth)
 	r.GET("/health", handlers.HealthCheck)
+	r.GET("/api/v1/time", handlers.ServerTime)
 
 	// API v1 group
 	v1 := r.Group("/api/v1")
