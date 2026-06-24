@@ -54,7 +54,7 @@ func SellCrop(c *gin.Context) {
 		return
 	}
 
-	resp, err := services.SellCrop(userID, req.CropID, req.Count)
+	resp, err := services.SellCrop(userID, *req.CropID, req.Count)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, dto.Fail(1002, err.Error()))
 		return
