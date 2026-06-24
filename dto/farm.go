@@ -8,6 +8,7 @@ package dto
 type SaveRequest struct {
 	SelectedSeed int `json:"selected_seed"`
 	ToolMode     int `json:"tool_mode"`
+	SelectedFert int `json:"selected_fertilizer"`
 }
 
 // PlotData represents a single farm plot in the save payload.
@@ -53,8 +54,8 @@ type LoadResponse struct {
 
 // SellRequest is sent when the client sells inventory items.
 type SellRequest struct {
-	CropID int `json:"crop_id" binding:"required"`
-	Count  int `json:"count" binding:"required,min=1"`
+	CropID *int `json:"crop_id" binding:"required"`
+	Count  int  `json:"count" binding:"required,min=1"`
 }
 
 // SellResponse is returned after a successful sell.

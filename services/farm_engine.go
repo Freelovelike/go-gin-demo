@@ -42,14 +42,14 @@ type FertilizerConfig struct {
 
 // CROP_CONFIGS is indexed by crop_id (0-based), must stay in sync with frontend.
 var CROP_CONFIGS = []CropConfig{
-	{Name: "生菜", Key: "lettuce", GrowTime: 12, SeedCost: 12, BaseYield: 4, UnitSell: 8, MinYield: 3, MaxYield: 5, DryRate: 0.06, BugRate: 0, WeedRate: 0.04, MaxBug: 0, MaxWeed: 1},          // 0 lettuce
-	{Name: "辣椒", Key: "pepper", GrowTime: 20, SeedCost: 20, BaseYield: 6, UnitSell: 10, MinYield: 4, MaxYield: 7, DryRate: 0.10, BugRate: 0.05, WeedRate: 0.05, MaxBug: 1, MaxWeed: 1},      // 1 pepper
-	{Name: "茄子", Key: "eggplant", GrowTime: 32, SeedCost: 35, BaseYield: 5, UnitSell: 19, MinYield: 3, MaxYield: 6, DryRate: 0.10, BugRate: 0.08, WeedRate: 0.08, MaxBug: 2, MaxWeed: 2},    // 2 eggplant
-	{Name: "西红柿", Key: "tomato", GrowTime: 48, SeedCost: 55, BaseYield: 8, UnitSell: 19, MinYield: 6, MaxYield: 10, DryRate: 0.14, BugRate: 0.09, WeedRate: 0.07, MaxBug: 2, MaxWeed: 2},    // 3 tomato
-	{Name: "草莓", Key: "strawberry", GrowTime: 70, SeedCost: 80, BaseYield: 12, UnitSell: 18, MinYield: 9, MaxYield: 14, DryRate: 0.16, BugRate: 0.12, WeedRate: 0.10, MaxBug: 2, MaxWeed: 2}, // 4 strawberry
-	{Name: "玉米", Key: "corn", GrowTime: 100, SeedCost: 120, BaseYield: 6, UnitSell: 57, MinYield: 4, MaxYield: 7, DryRate: 0.18, BugRate: 0.07, WeedRate: 0.12, MaxBug: 2, MaxWeed: 3},       // 5 corn
+	{Name: "生菜", Key: "lettuce", GrowTime: 12, SeedCost: 12, BaseYield: 4, UnitSell: 8, MinYield: 3, MaxYield: 5, DryRate: 0.06, BugRate: 0, WeedRate: 0.04, MaxBug: 0, MaxWeed: 1},           // 0 lettuce
+	{Name: "辣椒", Key: "pepper", GrowTime: 20, SeedCost: 20, BaseYield: 6, UnitSell: 10, MinYield: 4, MaxYield: 7, DryRate: 0.10, BugRate: 0.05, WeedRate: 0.05, MaxBug: 1, MaxWeed: 1},        // 1 pepper
+	{Name: "茄子", Key: "eggplant", GrowTime: 32, SeedCost: 35, BaseYield: 5, UnitSell: 19, MinYield: 3, MaxYield: 6, DryRate: 0.10, BugRate: 0.08, WeedRate: 0.08, MaxBug: 2, MaxWeed: 2},      // 2 eggplant
+	{Name: "西红柿", Key: "tomato", GrowTime: 48, SeedCost: 55, BaseYield: 8, UnitSell: 19, MinYield: 6, MaxYield: 10, DryRate: 0.14, BugRate: 0.09, WeedRate: 0.07, MaxBug: 2, MaxWeed: 2},      // 3 tomato
+	{Name: "草莓", Key: "strawberry", GrowTime: 70, SeedCost: 80, BaseYield: 12, UnitSell: 18, MinYield: 9, MaxYield: 14, DryRate: 0.16, BugRate: 0.12, WeedRate: 0.10, MaxBug: 2, MaxWeed: 2},  // 4 strawberry
+	{Name: "玉米", Key: "corn", GrowTime: 100, SeedCost: 120, BaseYield: 6, UnitSell: 57, MinYield: 4, MaxYield: 7, DryRate: 0.18, BugRate: 0.07, WeedRate: 0.12, MaxBug: 2, MaxWeed: 3},        // 5 corn
 	{Name: "向日葵", Key: "sunflower", GrowTime: 135, SeedCost: 170, BaseYield: 4, UnitSell: 125, MinYield: 3, MaxYield: 5, DryRate: 0.13, BugRate: 0.04, WeedRate: 0.09, MaxBug: 1, MaxWeed: 2}, // 6 sunflower
-	{Name: "南瓜", Key: "pumpkin", GrowTime: 180, SeedCost: 240, BaseYield: 3, UnitSell: 240, MinYield: 2, MaxYield: 4, DryRate: 0.12, BugRate: 0.11, WeedRate: 0.15, MaxBug: 3, MaxWeed: 3},   // 7 pumpkin
+	{Name: "南瓜", Key: "pumpkin", GrowTime: 180, SeedCost: 240, BaseYield: 3, UnitSell: 240, MinYield: 2, MaxYield: 4, DryRate: 0.12, BugRate: 0.11, WeedRate: 0.15, MaxBug: 3, MaxWeed: 3},    // 7 pumpkin
 	{Name: "西瓜", Key: "watermelon", GrowTime: 230, SeedCost: 320, BaseYield: 5, UnitSell: 196, MinYield: 3, MaxYield: 7, DryRate: 0.20, BugRate: 0.12, WeedRate: 0.14, MaxBug: 3, MaxWeed: 3}, // 8 watermelon
 }
 
@@ -131,6 +131,10 @@ func eventProbability(rate, mult, cycles float64) float64 {
 	return 1 - math.Pow(1-pPerCycle, cycles)
 }
 
+func unixNow(t time.Time) float64 {
+	return float64(t.Unix())
+}
+
 // ProcessFarm is the core engine: calculates all state changes since last_processed_at.
 // Called before every action and on load.
 func ProcessFarm(userID uint) error {
@@ -146,6 +150,7 @@ func ProcessFarm(userID uint) error {
 
 	now := time.Now()
 	needSave := false
+	maxElapsed := 0.0
 
 	for i := range plots {
 		p := &plots[i]
@@ -167,15 +172,15 @@ func ProcessFarm(userID uint) error {
 		if elapsed <= 0 {
 			continue
 		}
+		if elapsed > maxElapsed {
+			maxElapsed = elapsed
+		}
 
 		cid := *p.CropID
 		if cid < 0 || cid >= len(CROP_CONFIGS) {
 			continue
 		}
 		cfg := CROP_CONFIGS[cid]
-
-		// Update game time
-		user.GameTime += elapsed
 
 		// ---- Apply growth ----
 		stage := getCropStageEnum(p.Progress)
@@ -223,13 +228,13 @@ func ProcessFarm(userID uint) error {
 			smWeed := stageMultWeed[stage]
 
 			// Dry: single binary state.
-			if p.WaterState == 0 && now.Unix() >= int64(p.WaterProtectUntil) {
+			if p.WaterState == 0 && unixNow(now) >= p.WaterProtectUntil {
 				if rand.Float64() < eventProbability(cfg.DryRate, smDry, cycles) {
 					p.WaterState = 1
 				}
 			}
 			// Bug: roll each remaining slot up to MaxBug.
-			if p.BugCount < cfg.MaxBug && now.Unix() >= int64(p.BugProtectUntil) {
+			if p.BugCount < cfg.MaxBug && unixNow(now) >= p.BugProtectUntil {
 				prob := eventProbability(cfg.BugRate, smBug, cycles)
 				for p.BugCount < cfg.MaxBug && rand.Float64() < prob {
 					p.BugCount++
@@ -239,7 +244,7 @@ func ProcessFarm(userID uint) error {
 				}
 			}
 			// Weed: roll each remaining slot up to MaxWeed.
-			if p.WeedCount < cfg.MaxWeed && now.Unix() >= int64(p.WeedProtectUntil) {
+			if p.WeedCount < cfg.MaxWeed && unixNow(now) >= p.WeedProtectUntil {
 				prob := eventProbability(cfg.WeedRate, smWeed, cycles)
 				for p.WeedCount < cfg.MaxWeed && rand.Float64() < prob {
 					p.WeedCount++
@@ -251,7 +256,7 @@ func ProcessFarm(userID uint) error {
 		}
 
 		// ---- Protection expiry ----
-		if p.WaterState == 2 && user.GameTime >= p.WaterProtectUntil {
+		if p.WaterState == 2 && unixNow(now) >= p.WaterProtectUntil {
 			p.WaterState = 0 // back to Normal
 		}
 
@@ -262,6 +267,7 @@ func ProcessFarm(userID uint) error {
 	if !needSave {
 		return nil
 	}
+	user.GameTime += maxElapsed
 
 	// Batch save
 	return database.DB.Transaction(func(tx *gorm.DB) error {
@@ -336,6 +342,18 @@ func checkLevelUp(userID uint) {
 	}
 }
 
+func awardExp(userID uint, amount int) error {
+	if amount <= 0 {
+		return nil
+	}
+	if err := database.DB.Model(&models.User{}).Where("id = ?", userID).
+		Update("exp_val", gorm.Expr("exp_val + ?", amount)).Error; err != nil {
+		return err
+	}
+	checkLevelUp(userID)
+	return nil
+}
+
 // ExecuteAction processes a player action with full server authority.
 // 1. ProcessFarm (time-diff calculation)
 // 2. Validate & execute the action
@@ -375,6 +393,8 @@ func ExecuteAction(userID uint, req dto.ActionRequest) (*dto.ActionResponse, err
 		message, err = doHarvestAll(userID)
 	case "sell_all":
 		message, err = doSellAll(userID)
+	case "sell":
+		message, err = doSell(userID, req)
 	case "buy_fertilizer":
 		message, err = doBuyFertilizer(userID, req)
 	case "reclaim":
@@ -482,16 +502,17 @@ func doWater(userID uint, req dto.ActionRequest) (string, error) {
 	} else if cfg.GrowTime < 5400 {
 		protectDur = 20.0 * 60.0
 	}
-	var user models.User
-	database.DB.First(&user, userID)
-
 	p.WaterState = 2
-	p.WaterProtectUntil = user.GameTime + protectDur
+	p.WaterProtectUntil = unixNow(time.Now()) + protectDur
 	p.DryTimer = 0
 	p.WetTimer = 12
 
-	database.DB.Save(p)
-	database.DB.Model(&models.User{}).Where("id = ?", userID).Update("exp_val", gorm.Expr("exp_val + 1"))
+	if err := database.DB.Save(p).Error; err != nil {
+		return "", err
+	}
+	if err := awardExp(userID, 1); err != nil {
+		return "", err
+	}
 	return "浇水成功!", nil
 }
 
@@ -533,11 +554,6 @@ func doFertilize(userID uint, req dto.ActionRequest) (string, error) {
 	}
 	stageUsed := parseFertStageUsed(p.FertStageUsed)
 
-	var user models.User
-	if err := database.DB.First(&user, userID).Error; err != nil {
-		return "", fmt.Errorf("user not found: %w", err)
-	}
-
 	switch fertCfg.Type {
 	case "speed":
 		reduction := cropCfg.GrowTime * fertCfg.EffectValue
@@ -549,15 +565,15 @@ func doFertilize(userID uint, req dto.ActionRequest) (string, error) {
 		}
 		p.Progress += reduction / cropCfg.GrowTime
 	case "water_protect":
-		p.WaterProtectUntil = user.GameTime + fertCfg.EffectValue
+		p.WaterProtectUntil = unixNow(time.Now()) + fertCfg.EffectValue
 		if p.WaterState == 1 {
 			p.WaterState = 2
 			p.DryTimer = 0
 		}
 	case "bug_protect":
-		p.BugProtectUntil = user.GameTime + fertCfg.EffectValue
+		p.BugProtectUntil = unixNow(time.Now()) + fertCfg.EffectValue
 	case "weed_protect":
-		p.WeedProtectUntil = user.GameTime + fertCfg.EffectValue
+		p.WeedProtectUntil = unixNow(time.Now()) + fertCfg.EffectValue
 	case "yield_bonus":
 		p.YieldBonusRate += fertCfg.EffectValue
 	default:
@@ -668,16 +684,16 @@ func doHarvest(userID uint, req dto.ActionRequest) (string, error) {
 		if e != nil {
 			return e
 		}
-		return tx.Model(&models.User{}).Where("id = ?", userID).
-			Update("exp_val", gorm.Expr("exp_val + ?", CROP_CONFIGS[cid].BaseYield)).Error
+		return nil
 	})
 	if err != nil {
 		return "", err
 	}
-	checkLevelUp(userID)
+	if err := awardExp(userID, CROP_CONFIGS[cid].BaseYield); err != nil {
+		return "", err
+	}
 	return fmt.Sprintf("收获 %s x%d!", cropNameZH(cid), yieldCount), nil
 }
-
 
 func doRemoveBug(userID uint, req dto.ActionRequest) (string, error) {
 	if req.PlotIndex == nil {
@@ -694,12 +710,14 @@ func doRemoveBug(userID uint, req dto.ActionRequest) (string, error) {
 	if p.BugCount <= 0 {
 		p.BugCount = 0
 		p.BugSince = 0
-		var user models.User
-		database.DB.First(&user, userID)
-		p.BugProtectUntil = user.GameTime + 120
+		p.BugProtectUntil = unixNow(time.Now()) + 120
 	}
-	database.DB.Save(p)
-	database.DB.Model(&models.User{}).Where("id = ?", userID).Update("exp_val", gorm.Expr("exp_val + 1"))
+	if err := database.DB.Save(p).Error; err != nil {
+		return "", err
+	}
+	if err := awardExp(userID, 1); err != nil {
+		return "", err
+	}
 	return "除虫成功!", nil
 }
 
@@ -718,12 +736,14 @@ func doRemoveWeed(userID uint, req dto.ActionRequest) (string, error) {
 	if p.WeedCount <= 0 {
 		p.WeedCount = 0
 		p.WeedSince = 0
-		var user models.User
-		database.DB.First(&user, userID)
-		p.WeedProtectUntil = user.GameTime + 120
+		p.WeedProtectUntil = unixNow(time.Now()) + 120
 	}
-	database.DB.Save(p)
-	database.DB.Model(&models.User{}).Where("id = ?", userID).Update("exp_val", gorm.Expr("exp_val + 1"))
+	if err := database.DB.Save(p).Error; err != nil {
+		return "", err
+	}
+	if err := awardExp(userID, 1); err != nil {
+		return "", err
+	}
 	return "除草成功!", nil
 }
 
@@ -760,13 +780,14 @@ func doHarvestAll(userID uint) (string, error) {
 			}
 			count++
 		}
-		return tx.Model(&models.User{}).Where("id = ?", userID).
-			Update("exp_val", gorm.Expr("exp_val + ?", count*5)).Error
+		return nil
 	})
 	if err != nil {
 		return "", err
 	}
-	checkLevelUp(userID)
+	if err := awardExp(userID, count*5); err != nil {
+		return "", err
+	}
 	return fmt.Sprintf("一键收获了 %d 个作物!", count), nil
 }
 
@@ -799,6 +820,17 @@ func cropNameZH(cid int) string {
 		return CROP_CONFIGS[cid].Name
 	}
 	return "未知作物"
+}
+
+func doSell(userID uint, req dto.ActionRequest) (string, error) {
+	if req.CropID == nil || req.Count == nil {
+		return "", fmt.Errorf("sell requires crop_id and count")
+	}
+	resp, err := sellCropLocked(userID, *req.CropID, *req.Count)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("售出 %s x%d，获得 %d 金币", cropNameZH(*req.CropID), resp.SoldCount, resp.GoldEarned), nil
 }
 
 // doSellAll sells all inventory items server-side.

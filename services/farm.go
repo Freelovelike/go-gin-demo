@@ -13,13 +13,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// SaveFarm persists only non-authoritative client preferences (selected seed, tool mode).
+// SaveFarm persists only non-authoritative client preferences.
 // All game state (gold, level, plots, inventory) is server-authoritative and is mutated
 // exclusively through /farm/action — the client cannot overwrite it here.
 func SaveFarm(userID uint, req dto.SaveRequest) error {
 	userUpdates := map[string]interface{}{
-		"selected_seed": req.SelectedSeed,
-		"tool_mode":     req.ToolMode,
+		"selected_seed":       req.SelectedSeed,
+		"tool_mode":           req.ToolMode,
+		"selected_fertilizer": req.SelectedFert,
 	}
 	if err := database.DB.Model(&models.User{}).Where("id = ?", userID).Updates(userUpdates).Error; err != nil {
 		return fmt.Errorf("update user prefs: %w", err)
@@ -206,14 +207,20 @@ func loadFarmLocked(userID uint) (*dto.LoadResponse, error) {
 		Plots:         plotData,
 		Inventory:     inv,
 		FertilizerInv: fertInv,
-		SelectedFert:  -1,
+		SelectedFert:  user.SelectedFert,
 	}, nil
 }
 
 // SellCrop sells inventory items server-side (anti-cheat).
 func SellCrop(userID uint, cropID int, count int) (*dto.SellResponse, error) {
 	defer lockUser(userID)()
+	return sellCropLocked(userID, cropID, count)
+}
 
+func sellCropLocked(userID uint, cropID int, count int) (*dto.SellResponse, error) {
+	if count <= 0 {
+		return nil, errors.New("count must be positive")
+	}
 	var item models.InventoryItem
 	err := database.DB.Where("user_id = ? AND crop_id = ?", userID, cropID).First(&item).Error
 	if err != nil {
