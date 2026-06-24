@@ -135,6 +135,51 @@ func unixNow(t time.Time) float64 {
 	return float64(t.Unix())
 }
 
+func unixSeconds(t *time.Time) float64 {
+	if t == nil {
+		return 0
+	}
+	return float64(t.UnixMilli()) / 1000.0
+}
+
+func currentGrowthSpeedMultiplier(p models.FarmPlot) float64 {
+	speedMult := 1.0
+	if p.WaterState == 1 {
+		speedMult *= 0.7
+	}
+	if p.BugCount > 0 {
+		penalty := 1.0 - float64(p.BugCount)*0.10
+		if penalty < 0.3 {
+			penalty = 0.3
+		}
+		speedMult *= penalty
+	}
+	if p.WeedCount > 0 {
+		penalty := 1.0 - float64(p.WeedCount)*0.05
+		if penalty < 0.5 {
+			penalty = 0.5
+		}
+		speedMult *= penalty
+	}
+	return speedMult
+}
+
+func estimateMatureAt(p models.FarmPlot, now time.Time) float64 {
+	if p.CropID == nil || p.Progress >= 1.0 {
+		return 0
+	}
+	cid := *p.CropID
+	if cid < 0 || cid >= len(CROP_CONFIGS) {
+		return 0
+	}
+	speedMult := currentGrowthSpeedMultiplier(p)
+	if speedMult <= 0 {
+		return 0
+	}
+	remaining := (1.0 - p.Progress) * CROP_CONFIGS[cid].GrowTime / speedMult
+	return unixNow(now) + remaining
+}
+
 // ProcessFarm is the core engine: calculates all state changes since last_processed_at.
 // Called before every action and on load.
 func ProcessFarm(userID uint) error {
@@ -185,28 +230,10 @@ func ProcessFarm(userID uint) error {
 		// ---- Apply growth ----
 		stage := getCropStageEnum(p.Progress)
 		if stage < 3 {
-			speedMult := 1.0
-			// Dry penalty
 			if p.WaterState == 1 { // DRY
-				speedMult *= 0.7
 				p.DryTimer += elapsed
 			}
-			// Bug penalty
-			if p.BugCount > 0 {
-				penalty := 1.0 - float64(p.BugCount)*0.10
-				if penalty < 0.3 {
-					penalty = 0.3
-				}
-				speedMult *= penalty
-			}
-			// Weed penalty
-			if p.WeedCount > 0 {
-				penalty := 1.0 - float64(p.WeedCount)*0.05
-				if penalty < 0.5 {
-					penalty = 0.5
-				}
-				speedMult *= penalty
-			}
+			speedMult := currentGrowthSpeedMultiplier(*p)
 			p.Progress += elapsed * speedMult / cfg.GrowTime
 			if p.Progress > 1.0 {
 				p.Progress = 1.0
@@ -465,6 +492,7 @@ func doPlant(userID uint, req dto.ActionRequest) (string, error) {
 	p.YieldBonusRate = 0
 	p.YieldLossRate = 0
 	now := time.Now()
+	p.PlantedAt = &now
 	p.LastProcessedAt = &now
 
 	err = database.DB.Transaction(func(tx *gorm.DB) error {
@@ -609,6 +637,7 @@ const (
 // harvest and shovel paths so the (long) reset stays in one place.
 func clearPlot(p *models.FarmPlot) {
 	p.CropID = nil
+	p.PlantedAt = nil
 	p.Progress = 0
 	p.WetTimer = 0
 	p.WaterState = 0

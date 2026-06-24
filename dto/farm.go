@@ -18,6 +18,8 @@ type PlotData struct {
 	LandLevel         int            `json:"land_level"`
 	LandWork          int            `json:"land_work"`
 	CropID            *int           `json:"crop_id"`
+	PlantedAt         float64        `json:"planted_at"`
+	EstimatedMatureAt float64        `json:"estimated_mature_at"`
 	Progress          float64        `json:"progress"`
 	WetTimer          float64        `json:"wet_timer"`
 	WaterState        int            `json:"water_state"`
@@ -44,6 +46,7 @@ type LoadResponse struct {
 	ExpVal        int            `json:"exp_val"`
 	ExpToLevel    int            `json:"exp_to_level"`
 	GameTime      float64        `json:"game_time"`
+	ServerTime    float64        `json:"server_time"`
 	SelectedSeed  int            `json:"selected_seed"`
 	ToolMode      int            `json:"tool_mode"`
 	Plots         []PlotData     `json:"plots"`

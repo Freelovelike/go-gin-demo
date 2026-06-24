@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"go-gin-demo/database"
 	"go-gin-demo/dto"
@@ -148,13 +149,17 @@ func loadFarmLocked(userID uint) (*dto.LoadResponse, error) {
 	}
 
 	plotData := make([]dto.PlotData, len(plots))
+	now := time.Now()
 	for i, p := range plots {
+		plantedAt := unixSeconds(p.PlantedAt)
 		plotData[i] = dto.PlotData{
 			PlotIndex:         p.PlotIndex,
 			Unlocked:          p.Unlocked,
 			LandLevel:         p.LandLevel,
 			LandWork:          p.LandWork,
 			CropID:            p.CropID,
+			PlantedAt:         plantedAt,
+			EstimatedMatureAt: estimateMatureAt(p, now),
 			Progress:          p.Progress,
 			WetTimer:          p.WetTimer,
 			WaterState:        p.WaterState,
@@ -202,6 +207,7 @@ func loadFarmLocked(userID uint) (*dto.LoadResponse, error) {
 		ExpVal:        user.ExpVal,
 		ExpToLevel:    user.ExpToLvl,
 		GameTime:      user.GameTime,
+		ServerTime:    unixSeconds(&now),
 		SelectedSeed:  user.SelectedSeed,
 		ToolMode:      user.ToolMode,
 		Plots:         plotData,
