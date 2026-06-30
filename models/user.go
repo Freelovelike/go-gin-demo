@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// User represents a registered player.
+// User 代表一个注册玩家。
 type User struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	Username     string    `gorm:"uniqueIndex;size:32;not null" json:"username"`

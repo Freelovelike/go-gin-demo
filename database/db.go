@@ -11,8 +11,10 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// DB 是全局的 GORM 数据库实例。
 var DB *gorm.DB
 
+// InitPostgres 初始化并连接 PostgreSQL 数据库。
 func InitPostgres(cfg *config.Config) {
 	var err error
 	DB, err = gorm.Open(postgres.Open(cfg.DB_DSN), &gorm.Config{
@@ -29,6 +31,7 @@ func InitPostgres(cfg *config.Config) {
 	log.Println("PostgreSQL connected")
 }
 
+// AutoMigrate 自动迁移数据库模式以匹配定义的模型。
 func AutoMigrate() {
 	err := DB.AutoMigrate(
 		&models.User{},
@@ -43,6 +46,7 @@ func AutoMigrate() {
 	log.Println("Database migration completed")
 }
 
+// SeedCropDefs 使用预定义的作物常量向数据库中填充初始数据。
 func SeedCropDefs() {
 	for _, cs := range models.CROPS {
 		result := DB.Where("key = ?", cs.Key).Assign(models.CropDef{

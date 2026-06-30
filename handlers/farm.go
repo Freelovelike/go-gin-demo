@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SaveFarm receives the full game save from the client.
+// SaveFarm 从客户端接收完整的游戏存档。
 func SaveFarm(c *gin.Context) {
 	userID := c.MustGet("user_id").(uint)
 
@@ -27,11 +27,12 @@ func SaveFarm(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.OK(gin.H{"saved": true}))
 }
 
+// LoadFarmConfig 响应客户端获取农场配置信息（作物、肥料等）的请求。
 func LoadFarmConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.OK(services.LoadFarmConfig()))
 }
 
-// LoadFarm returns the full game save for the authenticated user.
+// LoadFarm 返回经过验证的用户的完整游戏存档。
 func LoadFarm(c *gin.Context) {
 	userID := c.MustGet("user_id").(uint)
 
@@ -44,7 +45,7 @@ func LoadFarm(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.OK(resp))
 }
 
-// SellCrop sells inventory items server-side.
+// SellCrop 在服务器端出售库存物品。
 func SellCrop(c *gin.Context) {
 	userID := c.MustGet("user_id").(uint)
 

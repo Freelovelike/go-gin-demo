@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// InventoryItem tracks how many of a crop a player has harvested.
+// InventoryItem 记录玩家收获了多少某种作物。
 type InventoryItem struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	UserID    uint      `gorm:"index;not null" json:"user_id"`

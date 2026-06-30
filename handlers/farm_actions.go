@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// HandleAction is the unified endpoint for all farm actions.
+// HandleAction 是所有农场操作的统一端点。
 func HandleAction(c *gin.Context) {
 	userID := c.MustGet("user_id").(uint)
 

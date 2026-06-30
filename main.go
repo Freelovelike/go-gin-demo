@@ -15,7 +15,7 @@ import (
 func main() {
 	cfg := config.Load()
 
-	// Database
+	// 数据库
 	database.InitPostgres(cfg)
 	database.AutoMigrate()
 	database.SeedCropDefs()
@@ -23,10 +23,10 @@ func main() {
 	// Redis
 	database.InitRedis(cfg)
 
-	// Services
+	// 服务
 	services.InitAuth(cfg)
 
-	// Router
+	// 路由器
 	r := gin.Default()
 	r.Use(middleware.CORSMiddleware())
 

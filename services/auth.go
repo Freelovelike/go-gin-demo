@@ -17,19 +17,20 @@ import (
 
 var cfg *config.Config
 
+// InitAuth 初始化认证服务，设置全局配置。
 func InitAuth(c *config.Config) {
 	cfg = c
 }
 
-// Register creates a new user, initializes their 30 farm plots.
+// Register 创建新用户，初始化他们的 30 个农场块。
 func Register(req dto.RegisterRequest) (*dto.AuthResponse, error) {
-	// Check duplicate username
+	// 检查用户名是否重复
 	var existing models.User
 	if err := database.DB.Where("username = ?", req.Username).First(&existing).Error; err == nil {
 		return nil, errors.New("username already taken")
 	}
 
-	// Hash password
+	// 密码哈希
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("hash password failed: %w", err)
@@ -44,7 +45,7 @@ func Register(req dto.RegisterRequest) (*dto.AuthResponse, error) {
 		ExpToLvl: 100,
 	}
 
-	// Create user + farm plots in a transaction
+	// 在事务中创建用户和农场块
 	err = database.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&user).Error; err != nil {
 			return err
@@ -55,7 +56,7 @@ func Register(req dto.RegisterRequest) (*dto.AuthResponse, error) {
 			plots[i] = models.FarmPlot{
 				UserID:    user.ID,
 				PlotIndex: i,
-				Unlocked:  i == 0, // first plot unlocked
+				Unlocked:  i == 0, // 第一个地块解锁
 			}
 		}
 		return tx.Create(&plots).Error
@@ -75,7 +76,7 @@ func Register(req dto.RegisterRequest) (*dto.AuthResponse, error) {
 	}, nil
 }
 
-// Login verifies credentials and returns a JWT token.
+// Login 验证凭证并返回一个 JWT 令牌。
 func Login(req dto.LoginRequest) (*dto.AuthResponse, error) {
 	var user models.User
 	if err := database.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
@@ -117,7 +118,7 @@ func toUserResponse(u models.User) dto.UserResponse {
 	}
 }
 
-// GetUserByID returns user info by ID.
+// GetUserByID 根据 ID 返回用户信息。
 func GetUserByID(userID uint) (*dto.UserResponse, error) {
 	var user models.User
 	if err := database.DB.First(&user, userID).Error; err != nil {

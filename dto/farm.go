@@ -1,17 +1,16 @@
 package dto
 
-// SaveRequest carries the only client-owned, non-authoritative preferences the
-// server persists via /farm/save. All real game state (gold, level, plots,
-// inventory) is server-authoritative and is mutated exclusively through
-// /farm/action — the client cannot write it here. The client may still POST a
-// larger body; extra fields are simply ignored during JSON binding.
+// SaveRequest 携带服务器通过 /farm/save 持久化的唯一属于客户端的、非权威的首选项。
+// 所有真正的游戏状态（金币、等级、地块、库存）都是服务器权威的，只能专门通过
+// /farm/action 进行变更——客户端不能在这里写入它。客户端仍然可以 POST 一个
+// 更大的主体；多余的字段在 JSON 绑定期间将被直接忽略。
 type SaveRequest struct {
 	SelectedSeed int `json:"selected_seed"`
 	ToolMode     int `json:"tool_mode"`
 	SelectedFert int `json:"selected_fertilizer"`
 }
 
-// PlotData represents a single farm plot in the save payload.
+// PlotData 代表存档有效载荷中的单个农场块。
 type PlotData struct {
 	PlotIndex         int            `json:"plot_index"`
 	Unlocked          bool           `json:"unlocked"`
@@ -38,8 +37,8 @@ type PlotData struct {
 	YieldLossRate     float64        `json:"yield_loss_rate"`
 }
 
-// LoadResponse is the full game save returned by the server on load and after
-// every action. It is server-authoritative — the client renders it verbatim.
+// LoadResponse 是服务器在加载时和每次操作后返回的完整游戏存档。
+// 它是服务器权威的——客户端逐字（如实）渲染它。
 type LoadResponse struct {
 	Gold          int            `json:"gold"`
 	Level         int            `json:"level"`
@@ -55,37 +54,37 @@ type LoadResponse struct {
 	SelectedFert  int            `json:"selected_fertilizer"`
 }
 
-// SellRequest is sent when the client sells inventory items.
+// SellRequest 在客户端出售库存物品时发送。
 type SellRequest struct {
 	CropID *int `json:"crop_id" binding:"required"`
 	Count  int  `json:"count" binding:"required,min=1"`
 }
 
-// SellResponse is returned after a successful sell.
+// SellResponse 在成功出售后返回。
 type SellResponse struct {
 	Gold       int `json:"gold"`
 	SoldCount  int `json:"sold_count"`
 	GoldEarned int `json:"gold_earned"`
 }
 
-// ActionRequest is a unified request for all farm actions.
+// ActionRequest 是对所有农场操作的统一请求。
 type ActionRequest struct {
 	Action    string `json:"action" binding:"required"` // water|fertilize|harvest|remove_bug|remove_weed|plant|shovel|harvest_all
-	PlotIndex *int   `json:"plot_index,omitempty"`      // for single-tile actions
-	CropID    *int   `json:"crop_id,omitempty"`         // for plant
-	FertID    *int   `json:"fert_id,omitempty"`         // for fertilize
-	Count     *int   `json:"count,omitempty"`           // for sell
+	PlotIndex *int   `json:"plot_index,omitempty"`      // 用于单瓦片操作
+	CropID    *int   `json:"crop_id,omitempty"`         // 用于种植
+	FertID    *int   `json:"fert_id,omitempty"`         // 用于施肥
+	Count     *int   `json:"count,omitempty"`           // 用于出售
 }
 
-// ActionResponse is returned after every successful action.
-// Contains the full farm state so the client can re-render.
+// ActionResponse 在每次成功操作后返回。
+// 包含完整的农场状态以便客户端重新渲染。
 type ActionResponse struct {
 	*LoadResponse
-	Message string `json:"message,omitempty"` // e.g. "收获 生菜 x4!"
+	Message string `json:"message,omitempty"` // 例如 "收获 生菜 x4!"
 }
 
-// FarmConfigResponse exposes server-authoritative crop/fertilizer definitions
-// so the client does not hardcode gameplay configuration locally.
+// FarmConfigResponse 公开服务器权威的作物/肥料定义，
+// 以便客户端不必在本地硬编码游戏玩法配置。
 type FarmConfigResponse struct {
 	Crops                 []CropConfigDTO       `json:"crops"`
 	Fertilizers           []FertilizerConfigDTO `json:"fertilizers"`

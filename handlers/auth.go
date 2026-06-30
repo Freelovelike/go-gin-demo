@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Register handles user registration.
+// Register 处理用户注册。
 func Register(c *gin.Context) {
 	var req dto.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -26,7 +26,7 @@ func Register(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.OK(resp))
 }
 
-// Login handles user login.
+// Login 处理用户登录。
 func Login(c *gin.Context) {
 	var req dto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -43,7 +43,7 @@ func Login(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.OK(resp))
 }
 
-// GetProfile returns the current user's info (requires JWT).
+// GetProfile 返回当前用户的信息（需要 JWT）。
 func GetProfile(c *gin.Context) {
 	userID := c.MustGet("user_id").(uint)
 

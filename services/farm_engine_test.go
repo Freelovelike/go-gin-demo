@@ -7,7 +7,7 @@ import (
 )
 
 func TestEventProbability(t *testing.T) {
-	// Zero/negative inputs yield zero probability.
+	// 零/负输入产生零概率。
 	for _, tc := range []struct{ rate, mult, cycles float64 }{
 		{0, 1, 10}, {0.1, 0, 10}, {0.1, 1, 0}, {-1, 1, 10},
 	} {
@@ -16,28 +16,28 @@ func TestEventProbability(t *testing.T) {
 		}
 	}
 
-	// Monotonic in cycles: more elapsed time => higher chance.
+	// 在周期中单调递增：经过的时间越长 => 概率越高。
 	p1 := eventProbability(0.1, 1, 10)
 	p2 := eventProbability(0.1, 1, 100)
 	if !(p1 > 0 && p1 < p2 && p2 < 1) {
 		t.Errorf("expected 0 < p1(%v) < p2(%v) < 1", p1, p2)
 	}
 
-	// Matches the closed form 1-(1-p)^n it replaced (no 1000-cycle cap).
+	// 匹配它取代的闭式 1-(1-p)^n（没有 1000 个周期的上限）。
 	pPerCycle := 0.1 * (10.0 / 3600.0) * 1.0
 	want := 1 - math.Pow(1-pPerCycle, 5000)
 	if got := eventProbability(0.1, 1, 5000); math.Abs(got-want) > 1e-9 {
 		t.Errorf("eventProbability(0.1,1,5000) = %v, want %v", got, want)
 	}
 
-	// Probability is clamped to [0,1] even when per-cycle p>=1.
+	// 即使单周期 p>=1，概率也被限制在 [0,1] 之间。
 	if got := eventProbability(1000, 1, 1); got != 1 {
 		t.Errorf("saturated rate = %v, want 1", got)
 	}
 }
 
 func TestLockUserSerializes(t *testing.T) {
-	// Concurrent increments under the same user lock must not race.
+	// 在同一个用户锁下的并发增量不得产生数据竞争。
 	const goroutines = 50
 	const perG = 100
 	counter := 0
@@ -48,7 +48,7 @@ func TestLockUserSerializes(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < perG; j++ {
 				unlock := lockUser(1)
-				counter++ // read-modify-write, racy without the lock
+				counter++ // 读-改-写，没有锁的情况下会产生数据竞争
 				unlock()
 			}
 		}()
@@ -60,9 +60,9 @@ func TestLockUserSerializes(t *testing.T) {
 }
 
 func TestLockUserPerUserIndependent(t *testing.T) {
-	// Different user IDs get independent locks (no false sharing / deadlock).
+	// 不同的用户 ID 获取独立的锁（没有伪共享 / 死锁）。
 	u1 := lockUser(100)
-	u2 := lockUser(200) // would block forever if they shared a mutex
+	u2 := lockUser(200) // 如果它们共享一个互斥锁，将永远阻塞
 	u2()
 	u1()
 }

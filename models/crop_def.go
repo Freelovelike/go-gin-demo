@@ -1,19 +1,19 @@
 package models
 
-// CropDef is the master definition for each crop type.
-// Seed in bulk at startup from the CROPS constant below.
+// CropDef 是每种作物类型的主要定义。
+// 在启动时从下面的 CROPS 常量批量种植（初始化）。
 type CropDef struct {
 	ID         uint    `gorm:"primaryKey" json:"id"`
-	Key        string  `gorm:"uniqueIndex;size:32;not null" json:"key"`       // e.g. "tomato"
-	NameZH     string  `gorm:"size:32;not null" json:"name_zh"`              // e.g. "西红柿"
-	NameEN     string  `gorm:"size:32;not null" json:"name_en"`              // e.g. "Tomato"
+	Key        string  `gorm:"uniqueIndex;size:32;not null" json:"key"`       // 例如 "tomato"
+	NameZH     string  `gorm:"size:32;not null" json:"name_zh"`              // 例如 "西红柿"
+	NameEN     string  `gorm:"size:32;not null" json:"name_en"`              // 例如 "Tomato"
 	SeedCost   int     `gorm:"not null" json:"seed_cost"`
 	SellPrice  int     `gorm:"not null" json:"sell_price"`
-	GrowTime   float64 `gorm:"not null" json:"grow_time"` // seconds
+	GrowTime   float64 `gorm:"not null" json:"grow_time"` // 秒数
 	ExpReward  int     `gorm:"not null" json:"exp_reward"`
 }
 
-// CropSeed mirrors CropDef for seeding the database.
+// CropSeed 映射 CropDef，用于向数据库填充初始数据。
 type CropSeed struct {
 	Key       string
 	NameZH    string
@@ -24,8 +24,8 @@ type CropSeed struct {
 	ExpReward int
 }
 
-// CROPS is the master crop table — must stay in sync with the Godot client.
-// SellPrice = per-unit sell price (matches frontend CROPS[cid][6] / CROP_CONFIGS.UnitSell).
+// CROPS 是主作物表——必须与 Godot 客户端保持同步。
+// SellPrice = 每单位售价（对应前端的 CROPS[cid][6] / CROP_CONFIGS.UnitSell）。
 var CROPS = []CropSeed{
 	{Key: "lettuce", NameZH: "生菜", NameEN: "Lettuce", SeedCost: 12, SellPrice: 8, GrowTime: 12, ExpReward: 5},
 	{Key: "pepper", NameZH: "辣椒", NameEN: "Pepper", SeedCost: 20, SellPrice: 10, GrowTime: 20, ExpReward: 10},

@@ -799,8 +799,8 @@ func doHarvestAll(userID uint) (string, error) {
 		return "", fmt.Errorf("no mature crops")
 	}
 	count := 0
-	// Single transaction over all plots: previously each plot ran its own
-	// transaction, so a mid-loop failure left a half-harvested farm.
+	// 对所有地块使用单一事务：以前每个地块都运行自己的
+	// 事务，所以在循环中间失败会留下一个收获了一半的农场。
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		for i := range plots {
 			if _, e := harvestOnePlot(tx, userID, &plots[i]); e != nil {
@@ -842,7 +842,7 @@ func doShovelAll(userID uint) (string, error) {
 	return fmt.Sprintf("铲除了全部 %d 个作物!", count), nil
 }
 
-// cropNameZH returns the Chinese name for a crop ID (single source: CROP_CONFIGS).
+// cropNameZH 返回作物 ID 的中文名称（单一数据源：CROP_CONFIGS）。
 func cropNameZH(cid int) string {
 	if cid >= 0 && cid < len(CROP_CONFIGS) {
 		return CROP_CONFIGS[cid].Name
@@ -861,7 +861,7 @@ func doSell(userID uint, req dto.ActionRequest) (string, error) {
 	return fmt.Sprintf("售出 %s x%d，获得 %d 金币", cropNameZH(*req.CropID), resp.SoldCount, resp.GoldEarned), nil
 }
 
-// doSellAll sells all inventory items server-side.
+// doSellAll 在服务器端出售所有库存物品。
 func doSellAll(userID uint) (string, error) {
 	var items []models.InventoryItem
 	if err := database.DB.Where("user_id = ?", userID).Find(&items).Error; err != nil {
@@ -884,11 +884,11 @@ func doSellAll(userID uint) (string, error) {
 		return "", fmt.Errorf("背包是空的")
 	}
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		// Clear inventory
+		// 清空库存
 		if err := tx.Where("user_id = ?", userID).Delete(&models.InventoryItem{}).Error; err != nil {
 			return err
 		}
-		// Add gold
+		// 增加金币
 		return tx.Model(&models.User{}).Where("id = ?", userID).
 			Update("gold", gorm.Expr("gold + ?", totalGold)).Error
 	})
@@ -898,7 +898,7 @@ func doSellAll(userID uint) (string, error) {
 	return fmt.Sprintf("全部卖出 %d 个作物，获得 %d 金币", totalCount, totalGold), nil
 }
 
-// doBuyFertilizer purchases a fertilizer and adds it to inventory.
+// doBuyFertilizer 购买肥料并将其添加到库存中。
 func doBuyFertilizer(userID uint, req dto.ActionRequest) (string, error) {
 	if req.FertID == nil {
 		return "", fmt.Errorf("buy_fertilizer requires fert_id")
@@ -916,12 +916,12 @@ func doBuyFertilizer(userID uint, req dto.ActionRequest) (string, error) {
 		return "", fmt.Errorf("金币不足 (need %d)", cost)
 	}
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		// Deduct gold
+		// 扣除金币
 		if err := tx.Model(&models.User{}).Where("id = ?", userID).
 			Update("gold", gorm.Expr("gold - ?", cost)).Error; err != nil {
 			return err
 		}
-		// Upsert fertilizer inventory
+		// 更新/插入肥料库存
 		var fi models.FertilizerInventory
 		if err := tx.Where("user_id = ? AND fert_index = ?", userID, fertID).First(&fi).Error; err != nil {
 			fi = models.FertilizerInventory{UserID: userID, FertIndex: fertID, Count: 1}
@@ -935,14 +935,14 @@ func doBuyFertilizer(userID uint, req dto.ActionRequest) (string, error) {
 	return fmt.Sprintf("购买 %s 成功!", FERTILIZER_CONFIGS[fertID].Name), nil
 }
 
-// Reclaim constants — must match frontend formulas.
+// 开垦常量——必须匹配前端的公式。
 const (
 	baseReclaimCost = 60
 	reclaimCostStep = 35
 	totalPlots      = 30
 )
 
-// doReclaim unlocks a plot with server-authoritative gold/level/order checks.
+// doReclaim 在服务器端进行权威的金币/等级/顺序检查后解锁地块。
 func doReclaim(userID uint, req dto.ActionRequest) (string, error) {
 	if req.PlotIndex == nil {
 		return "", fmt.Errorf("reclaim requires plot_index")
@@ -960,7 +960,7 @@ func doReclaim(userID uint, req dto.ActionRequest) (string, error) {
 		return "", fmt.Errorf("plot already unlocked")
 	}
 
-	// Enforce sequential unlock: the plot must be the first locked one.
+	// 强制顺序解锁：地块必须是第一个被锁定的。
 	var firstLocked models.FarmPlot
 	if err := database.DB.Where("user_id = ? AND unlocked = ?", userID, false).
 		Order("plot_index").First(&firstLocked).Error; err != nil {

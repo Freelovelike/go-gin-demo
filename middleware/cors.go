@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// CORSMiddleware 配置并返回用于处理跨域资源共享 (CORS) 的中间件。
 func CORSMiddleware() gin.HandlerFunc {
 	return cors.New(cors.Config{
 		AllowAllOrigins:  true,
