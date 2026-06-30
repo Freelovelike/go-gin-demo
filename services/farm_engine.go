@@ -228,8 +228,7 @@ func ProcessFarm(userID uint) error {
 		cfg := CROP_CONFIGS[cid]
 
 		// ---- Apply growth ----
-		stage := getCropStageEnum(p.Progress)
-		if stage < 3 {
+		if p.Progress < 1.0 {
 			if p.WaterState == 1 { // DRY
 				p.DryTimer += elapsed
 			}
@@ -248,7 +247,7 @@ func ProcessFarm(userID uint) error {
 		//   pAtLeastOne = 1 - (1 - pPerCycle)^cycles
 		// and draw once (dry) or once per open slot (bug/weed).
 		cycles := elapsed / 10.0
-		stage = getCropStageEnum(p.Progress) // re-check after growth
+		stage := getCropStageEnum(p.Progress) // re-check after growth
 		if stage < 3 {
 			smDry := stageMultDry[stage]
 			smBug := stageMultBug[stage]
